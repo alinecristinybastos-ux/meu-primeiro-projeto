@@ -9,8 +9,14 @@ Este projeto foi criado para aprender como funciona o fluxo de contribuição co
 ## Como usar
 
 1. Clone o repositório
-2. Faça suas alterações
-3. Abra um Pull Request
+2. Crie uma branch para sua alteração
+3. Faça suas alterações
+4. Abra um Pull Request
+5. Aguarde a revisão e aprovação
+
+## Contribuindo
+
+Contribuições são bem-vindas! Siga os passos acima e descreva claramente o que sua alteração faz.
 
 ## Contato
 
