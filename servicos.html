@@ -4,8 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Controle de Serviços</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <style>
@@ -29,15 +27,16 @@
     }
 
     header h1 { font-size: 1.2rem; font-weight: 600; flex: 1; }
-    header .status-dot {
+
+    .status-dot {
       width: 10px; height: 10px;
       border-radius: 50%;
       background: #ff9800;
       flex-shrink: 0;
     }
-    header .status-dot.online { background: #4caf50; }
+    .status-dot.online { background: #4caf50; }
 
-    .container { padding: 16px; max-width: 600px; margin: 0 auto; }
+    .container { padding: 16px; max-width: 680px; margin: 0 auto; }
 
     .card {
       background: white;
@@ -67,7 +66,7 @@
 
     label:first-of-type { margin-top: 0; }
 
-    input, textarea, select {
+    input, select {
       width: 100%;
       padding: 10px 12px;
       border: 1.5px solid #dde3ec;
@@ -79,12 +78,10 @@
       outline: none;
     }
 
-    input:focus, textarea:focus, select:focus {
+    input:focus, select:focus {
       border-color: #1a73e8;
       background: white;
     }
-
-    textarea { resize: vertical; min-height: 60px; }
 
     .row { display: flex; gap: 10px; }
     .row > div { flex: 1; }
@@ -105,54 +102,48 @@
     .btn:active { transform: scale(0.98); }
     .btn-primary { background: #1a73e8; color: white; }
     .btn-primary:hover { opacity: 0.9; }
-    .btn-success { background: #34a853; color: white; }
-    .btn-success:hover { opacity: 0.9; }
 
-    /* Summary */
+    /* Resumo */
     .summary {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
+      display: flex;
       gap: 10px;
       margin-bottom: 16px;
     }
 
     .summary-box {
+      flex: 1;
       background: white;
       border-radius: 10px;
-      padding: 14px 10px;
+      padding: 14px 8px;
       text-align: center;
       box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
 
-    .summary-box .value {
-      font-size: 1.3rem;
+    .summary-box .val {
+      font-size: 1.4rem;
       font-weight: 700;
-      color: #1a73e8;
     }
 
-    .summary-box .value.pendente { color: #ff9800; }
-    .summary-box .value.andamento { color: #1a73e8; }
-    .summary-box .value.concluido { color: #34a853; }
-    .summary-box .value.total-val { color: #8e44ad; }
-
-    .summary-box .label-sm {
-      font-size: 0.72rem;
+    .summary-box .lbl {
+      font-size: 0.70rem;
       color: #888;
       margin-top: 2px;
     }
+
+    .val.andamento { color: #1a73e8; }
+    .val.parado    { color: #ea4335; }
+    .val.concluido { color: #34a853; }
 
     /* Filtros */
     .filtro-row {
       display: flex;
       gap: 8px;
-      margin-bottom: 12px;
-      flex-wrap: wrap;
+      margin-bottom: 14px;
     }
 
     .filtro-btn {
       flex: 1;
-      min-width: 80px;
-      padding: 8px;
+      padding: 8px 4px;
       border: 1.5px solid #dde3ec;
       border-radius: 8px;
       background: white;
@@ -169,63 +160,46 @@
       color: white;
     }
 
-    /* Service item */
-    .service-item {
+    /* Card de serviço */
+    .srv-card {
       background: white;
-      border-radius: 10px;
+      border-radius: 12px;
+      margin-bottom: 14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+
+    .srv-header {
       padding: 14px 16px;
-      margin-bottom: 10px;
-      box-shadow: 0 1px 5px rgba(0,0,0,0.07);
-      border-left: 4px solid #ccc;
-    }
-
-    .service-item.pendente   { border-left-color: #ff9800; }
-    .service-item.andamento  { border-left-color: #1a73e8; }
-    .service-item.concluido  { border-left-color: #34a853; }
-    .service-item.meu        { background: #fafffe; }
-
-    .service-top {
+      border-left: 5px solid #ccc;
       display: flex;
-      justify-content: space-between;
       align-items: flex-start;
-      gap: 8px;
+      gap: 10px;
     }
 
-    .service-cliente { font-weight: 600; font-size: 0.95rem; }
-    .service-tipo    { font-size: 0.82rem; color: #555; margin-top: 2px; }
-    .service-desc    { font-size: 0.80rem; color: #888; margin-top: 2px; }
-    .service-meta    { font-size: 0.75rem; color: #aaa; margin-top: 4px; }
+    .srv-card.andamento .srv-header { border-left-color: #1a73e8; }
+    .srv-card.parado    .srv-header { border-left-color: #ea4335; }
+    .srv-card.concluido .srv-header { border-left-color: #34a853; }
 
-    .status-tag {
+    .srv-info { flex: 1; min-width: 0; }
+
+    .srv-tipo   { font-weight: 700; font-size: 0.95rem; }
+    .srv-cliente { font-size: 0.85rem; color: #555; margin-top: 2px; }
+    .srv-data   { font-size: 0.75rem; color: #aaa; margin-top: 3px; }
+
+    .srv-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+
+    .badge {
       font-size: 0.72rem;
-      padding: 3px 9px;
-      border-radius: 20px;
       font-weight: 700;
-      white-space: nowrap;
-      margin-top: 6px;
-      display: inline-block;
-    }
-
-    .status-tag.pendente  { background: #fff3e0; color: #e65100; }
-    .status-tag.andamento { background: #e8f0fe; color: #1a73e8; }
-    .status-tag.concluido { background: #e6f4ea; color: #34a853; }
-
-    .resp-tag {
-      font-size: 0.72rem;
-      background: #f3e5f5;
-      color: #8e44ad;
-      padding: 2px 7px;
+      padding: 3px 10px;
       border-radius: 20px;
-      display: inline-block;
-      margin-left: 6px;
+      white-space: nowrap;
     }
 
-    .service-actions {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      flex-shrink: 0;
-    }
+    .badge.andamento { background: #e8f0fe; color: #1a73e8; }
+    .badge.parado    { background: #fce8e6; color: #ea4335; }
+    .badge.concluido { background: #e6f4ea; color: #34a853; }
 
     .status-select-mini {
       font-size: 0.75rem;
@@ -233,40 +207,116 @@
       border: 1.5px solid #dde3ec;
       border-radius: 6px;
       background: #fafbff;
-      color: #333;
       cursor: pointer;
-    }
-
-    .valor-tag {
-      font-weight: 700;
-      color: #8e44ad;
-      font-size: 0.95rem;
-      white-space: nowrap;
     }
 
     .delete-btn {
       background: none;
       border: none;
       color: #ccc;
-      font-size: 1.1rem;
+      font-size: 1rem;
       cursor: pointer;
-      padding: 0 0 0 4px;
       line-height: 1;
+      padding: 0;
     }
 
     .delete-btn:hover { color: #ea4335; }
 
-    .prazo-vencido { color: #ea4335 !important; font-weight: 600; }
-
-    .empty {
-      text-align: center;
-      color: #bbb;
-      padding: 30px 0;
-      font-size: 0.9rem;
+    /* Tabela de viagens */
+    .viagens-section {
+      border-top: 1px solid #f0f4f8;
+      padding: 0 16px 14px;
     }
 
-    .empty span { display: block; font-size: 2rem; margin-bottom: 8px; }
+    .viagens-titulo {
+      font-size: 0.80rem;
+      font-weight: 700;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 10px 0 8px;
+    }
 
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+
+    th {
+      background: #f0f4f8;
+      color: #666;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 6px 8px;
+      text-align: left;
+    }
+
+    td {
+      padding: 7px 8px;
+      border-bottom: 1px solid #f5f5f5;
+      color: #444;
+      vertical-align: middle;
+    }
+
+    tr:last-child td { border-bottom: none; }
+
+    td.del-cell {
+      width: 28px;
+      text-align: center;
+    }
+
+    /* Formulário inline de viagem */
+    .add-viagem-form {
+      margin-top: 10px;
+      background: #fafbff;
+      border: 1.5px dashed #dde3ec;
+      border-radius: 10px;
+      padding: 12px;
+      display: none;
+    }
+
+    .add-viagem-form.aberto { display: block; }
+
+    .add-viagem-form .row { flex-wrap: wrap; }
+    .add-viagem-form .row > div { min-width: 130px; }
+
+    .add-viagem-form input {
+      font-size: 0.85rem;
+      padding: 8px 10px;
+    }
+
+    .btn-add-viagem {
+      margin-top: 10px;
+      padding: 8px 14px;
+      background: #1a73e8;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-add-viagem:hover { opacity: 0.9; }
+
+    .btn-toggle-viagem {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #1a73e8;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      margin-top: 8px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .btn-toggle-viagem:hover { text-decoration: underline; }
+
+    /* Alert */
     .alert {
       position: fixed;
       top: 20px;
@@ -289,18 +339,34 @@
     .alert.show { opacity: 1; }
     .alert.erro { background: #ea4335; }
 
+    .empty {
+      text-align: center;
+      color: #bbb;
+      padding: 30px 0;
+      font-size: 0.9rem;
+    }
+
+    .empty span { display: block; font-size: 2rem; margin-bottom: 8px; }
+
     .loading {
       text-align: center;
       color: #aaa;
       padding: 20px 0;
       font-size: 0.85rem;
     }
+
+    .no-viagens {
+      font-size: 0.80rem;
+      color: #bbb;
+      text-align: center;
+      padding: 8px 0 4px;
+    }
   </style>
 </head>
 <body>
 
 <header>
-  <span>🔧</span>
+  <span>🚛</span>
   <h1>Controle de Serviços</h1>
   <div class="status-dot" id="statusDot" title="Conectando..."></div>
 </header>
@@ -309,49 +375,28 @@
 
 <div class="container">
 
-  <!-- Identificação -->
-  <div class="card">
-    <h2>👤 Identificação</h2>
-    <label>Seu nome (responsável)</label>
-    <input type="text" id="respNome" placeholder="Digite seu nome" />
-  </div>
-
-  <!-- Formulário de serviço -->
+  <!-- Novo serviço -->
   <div class="card">
     <h2>➕ Novo Serviço</h2>
 
-    <label>Nome do cliente</label>
-    <input type="text" id="cliente" placeholder="Ex: Empresa ABC" />
+    <label>Tipo de Serviço</label>
+    <input type="text" id="tipo" placeholder="Ex: Terraplanagem, Transporte, Escavação..." />
 
-    <label>Tipo de serviço</label>
-    <input type="text" id="tipo" placeholder="Ex: Manutenção, Instalação, Consultoria..." />
-
-    <label>Descrição (opcional)</label>
-    <textarea id="descricao" placeholder="Detalhes do serviço..."></textarea>
+    <label>Cliente</label>
+    <input type="text" id="cliente" placeholder="Ex: Construtora Silva" />
 
     <div class="row">
+      <div>
+        <label>Data de Início</label>
+        <input type="date" id="dataInicio" />
+      </div>
       <div>
         <label>Status</label>
         <select id="status">
-          <option value="pendente">⏳ Pendente</option>
           <option value="andamento">🔄 Em Andamento</option>
+          <option value="parado">⛔ Parado</option>
           <option value="concluido">✅ Concluído</option>
         </select>
-      </div>
-      <div>
-        <label>Valor (R$)</label>
-        <input type="number" id="valor" placeholder="0,00" min="0" step="0.01" />
-      </div>
-    </div>
-
-    <div class="row">
-      <div>
-        <label>Data de abertura</label>
-        <input type="date" id="dataAbertura" />
-      </div>
-      <div>
-        <label>Prazo de entrega</label>
-        <input type="date" id="prazo" />
       </div>
     </div>
 
@@ -361,40 +406,30 @@
   <!-- Resumo -->
   <div class="summary" id="summaryArea" style="display:none">
     <div class="summary-box">
-      <div class="value pendente" id="totalPendente">0</div>
-      <div class="label-sm">Pendentes</div>
+      <div class="val andamento" id="cntAndamento">0</div>
+      <div class="lbl">Em Andamento</div>
     </div>
     <div class="summary-box">
-      <div class="value andamento" id="totalAndamento">0</div>
-      <div class="label-sm">Em andamento</div>
+      <div class="val parado" id="cntParado">0</div>
+      <div class="lbl">Parados</div>
     </div>
     <div class="summary-box">
-      <div class="value concluido" id="totalConcluido">0</div>
-      <div class="label-sm">Concluídos</div>
-    </div>
-    <div class="summary-box">
-      <div class="value total-val" id="totalValor">R$ 0</div>
-      <div class="label-sm">Valor total</div>
+      <div class="val concluido" id="cntConcluido">0</div>
+      <div class="lbl">Concluídos</div>
     </div>
   </div>
 
   <!-- Filtros -->
   <div class="filtro-row" id="filtroRow" style="display:none">
     <button class="filtro-btn ativo" id="btnTodos"     onclick="setFiltro('todos')">Todos</button>
-    <button class="filtro-btn"       id="btnPendente"  onclick="setFiltro('pendente')">⏳ Pendentes</button>
     <button class="filtro-btn"       id="btnAndamento" onclick="setFiltro('andamento')">🔄 Andamento</button>
-    <button class="filtro-btn"       id="btnConcluido" onclick="setFiltro('concluido')">✅ Concluídos</button>
-    <button class="filtro-btn"       id="btnMeus"      onclick="setFiltro('meus')">Meus</button>
+    <button class="filtro-btn"       id="btnParado"    onclick="setFiltro('parado')">⛔ Parado</button>
+    <button class="filtro-btn"       id="btnConcluido" onclick="setFiltro('concluido')">✅ Concluído</button>
   </div>
 
-  <!-- Lista -->
+  <!-- Lista de serviços -->
   <div id="listaServicos">
     <div class="loading">Conectando ao banco de dados...</div>
-  </div>
-
-  <!-- Relatório -->
-  <div id="botoesRelatorio" style="display:none">
-    <button class="btn btn-success" onclick="gerarPDF()">📄 Gerar Relatório PDF</button>
   </div>
 
 </div>
@@ -412,72 +447,57 @@
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
 
-  let todosServicos = [];
+  let servicos = [];
+  let viagens  = [];
   let filtroAtual = 'todos';
+  let formsAbertos = new Set();
 
   window.onload = function () {
-    const hoje = new Date().toISOString().slice(0, 10);
-    document.getElementById('dataAbertura').value = hoje;
-
-    const nomeGuardado = localStorage.getItem('respNome') || '';
-    document.getElementById('respNome').value = nomeGuardado;
-    document.getElementById('respNome').addEventListener('change', function () {
-      localStorage.setItem('respNome', this.value.trim());
-      renderServicos();
-    });
-
+    document.getElementById('dataInicio').value = new Date().toISOString().slice(0, 10);
     iniciarEscuta();
   };
 
   function iniciarEscuta() {
-    db.collection('servicos')
-      .orderBy('timestamp', 'desc')
-      .onSnapshot(
-        snapshot => {
-          document.getElementById('statusDot').className = 'status-dot online';
-          document.getElementById('statusDot').title = 'Conectado';
-          todosServicos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-          renderServicos();
-        },
-        () => {
-          document.getElementById('statusDot').className = 'status-dot';
-          document.getElementById('statusDot').title = 'Sem conexão';
-          document.getElementById('listaServicos').innerHTML =
-            '<div class="empty"><span>⚠️</span>Erro ao conectar. Verifique sua internet.</div>';
-        }
-      );
+    db.collection('servicos').orderBy('timestamp', 'desc').onSnapshot(
+      snap => {
+        document.getElementById('statusDot').className = 'status-dot online';
+        document.getElementById('statusDot').title = 'Conectado';
+        servicos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderTudo();
+      },
+      () => {
+        document.getElementById('statusDot').className = 'status-dot';
+        document.getElementById('statusDot').title = 'Sem conexão';
+        document.getElementById('listaServicos').innerHTML =
+          '<div class="empty"><span>⚠️</span>Erro ao conectar. Verifique sua internet.</div>';
+      }
+    );
+
+    db.collection('viagens').orderBy('data', 'asc').onSnapshot(
+      snap => {
+        viagens = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderTudo();
+      }
+    );
   }
 
   function setFiltro(f) {
     filtroAtual = f;
     document.querySelectorAll('.filtro-btn').forEach(b => b.classList.remove('ativo'));
-    const ids = { todos: 'btnTodos', pendente: 'btnPendente', andamento: 'btnAndamento', concluido: 'btnConcluido', meus: 'btnMeus' };
+    const ids = { todos: 'btnTodos', andamento: 'btnAndamento', parado: 'btnParado', concluido: 'btnConcluido' };
     document.getElementById(ids[f]).classList.add('ativo');
-    renderServicos();
-  }
-
-  function servicosFiltrados() {
-    const meuNome = document.getElementById('respNome').value.trim().toLowerCase();
-    if (filtroAtual === 'meus')      return todosServicos.filter(s => s.responsavel && s.responsavel.toLowerCase() === meuNome);
-    if (filtroAtual === 'pendente')  return todosServicos.filter(s => s.status === 'pendente');
-    if (filtroAtual === 'andamento') return todosServicos.filter(s => s.status === 'andamento');
-    if (filtroAtual === 'concluido') return todosServicos.filter(s => s.status === 'concluido');
-    return todosServicos;
+    renderTudo();
   }
 
   async function adicionarServico() {
-    const responsavel  = document.getElementById('respNome').value.trim();
-    const cliente      = document.getElementById('cliente').value.trim();
-    const tipo         = document.getElementById('tipo').value.trim();
-    const descricao    = document.getElementById('descricao').value.trim();
-    const status       = document.getElementById('status').value;
-    const valor        = parseFloat(document.getElementById('valor').value) || 0;
-    const dataAbertura = document.getElementById('dataAbertura').value;
-    const prazo        = document.getElementById('prazo').value;
+    const tipo      = document.getElementById('tipo').value.trim();
+    const cliente   = document.getElementById('cliente').value.trim();
+    const dataInicio = document.getElementById('dataInicio').value;
+    const status    = document.getElementById('status').value;
 
-    if (!responsavel) { mostrarAlerta('Informe seu nome antes de registrar.', true); return; }
-    if (!cliente)     { mostrarAlerta('Informe o nome do cliente.', true); return; }
-    if (!tipo)        { mostrarAlerta('Informe o tipo de serviço.', true); return; }
+    if (!tipo)    { mostrarAlerta('Informe o tipo de serviço.', true); return; }
+    if (!cliente) { mostrarAlerta('Informe o cliente.', true); return; }
+    if (!dataInicio) { mostrarAlerta('Informe a data de início.', true); return; }
 
     const btn = document.querySelector('.btn-primary');
     btn.disabled = true;
@@ -485,17 +505,13 @@
 
     try {
       await db.collection('servicos').add({
-        responsavel, cliente, tipo, descricao, status, valor, dataAbertura, prazo,
+        tipo, cliente, dataInicio, status,
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
       });
 
-      document.getElementById('cliente').value   = '';
-      document.getElementById('tipo').value      = '';
-      document.getElementById('descricao').value = '';
-      document.getElementById('valor').value     = '';
-      document.getElementById('prazo').value     = '';
-      document.getElementById('status').value    = 'pendente';
-      document.getElementById('cliente').focus();
+      document.getElementById('tipo').value    = '';
+      document.getElementById('cliente').value = '';
+      document.getElementById('status').value  = 'andamento';
       mostrarAlerta('✔ Serviço registrado!');
     } catch {
       mostrarAlerta('Erro ao salvar. Verifique a conexão.', true);
@@ -514,145 +530,190 @@
   }
 
   async function deletarServico(id) {
-    if (!confirm('Remover este serviço?')) return;
+    if (!confirm('Remover este serviço e todas as viagens associadas?')) return;
     try {
+      // Remove viagens do serviço
+      const viagBatch = db.batch();
+      viagens.filter(v => v.servicoId === id).forEach(v => {
+        viagBatch.delete(db.collection('viagens').doc(v.id));
+      });
+      await viagBatch.commit();
       await db.collection('servicos').doc(id).delete();
     } catch {
       mostrarAlerta('Erro ao remover.', true);
     }
   }
 
-  function renderServicos() {
-    const lista    = document.getElementById('listaServicos');
-    const summary  = document.getElementById('summaryArea');
-    const botoes   = document.getElementById('botoesRelatorio');
-    const filtroRow = document.getElementById('filtroRow');
-    const meuNome  = document.getElementById('respNome').value.trim().toLowerCase();
-    const servicos = servicosFiltrados();
-    const hoje     = new Date().toISOString().slice(0, 10);
+  async function adicionarViagem(servicoId) {
+    const prop = document.getElementById(`prop_${servicoId}`).value.trim();
+    const qtd  = parseInt(document.getElementById(`qtd_${servicoId}`).value) || 0;
+    const data = document.getElementById(`data_${servicoId}`).value;
 
-    if (todosServicos.length === 0) {
-      lista.innerHTML = '<div class="empty"><span>🔧</span>Nenhum serviço registrado ainda.</div>';
-      summary.style.display = 'none';
-      botoes.style.display  = 'none';
+    if (!prop) { mostrarAlerta('Informe o nome do proprietário.', true); return; }
+    if (qtd < 1) { mostrarAlerta('Informe a quantidade de viagens.', true); return; }
+    if (!data)  { mostrarAlerta('Informe a data.', true); return; }
+
+    const btn = document.getElementById(`btnSalvarViagem_${servicoId}`);
+    btn.disabled = true;
+    btn.textContent = 'Salvando...';
+
+    try {
+      await db.collection('viagens').add({
+        servicoId, proprietario: prop, quantidade: qtd, data,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      document.getElementById(`prop_${servicoId}`).value = '';
+      document.getElementById(`qtd_${servicoId}`).value  = '';
+      document.getElementById(`data_${servicoId}`).value = '';
+      mostrarAlerta('✔ Viagem registrada!');
+    } catch {
+      mostrarAlerta('Erro ao salvar viagem.', true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Salvar Viagem';
+    }
+  }
+
+  async function deletarViagem(id) {
+    if (!confirm('Remover esta viagem?')) return;
+    try {
+      await db.collection('viagens').doc(id).delete();
+    } catch {
+      mostrarAlerta('Erro ao remover viagem.', true);
+    }
+  }
+
+  function toggleForm(servicoId) {
+    if (formsAbertos.has(servicoId)) {
+      formsAbertos.delete(servicoId);
+    } else {
+      formsAbertos.add(servicoId);
+    }
+    renderTudo();
+  }
+
+  function renderTudo() {
+    const lista     = document.getElementById('listaServicos');
+    const summary   = document.getElementById('summaryArea');
+    const filtroRow = document.getElementById('filtroRow');
+
+    if (servicos.length === 0) {
+      lista.innerHTML = '<div class="empty"><span>🚛</span>Nenhum serviço registrado ainda.</div>';
+      summary.style.display   = 'none';
       filtroRow.style.display = 'none';
       return;
     }
 
+    summary.style.display   = 'flex';
     filtroRow.style.display = 'flex';
-    summary.style.display   = 'grid';
-    botoes.style.display    = 'block';
 
-    document.getElementById('totalPendente').textContent  = todosServicos.filter(s => s.status === 'pendente').length;
-    document.getElementById('totalAndamento').textContent = todosServicos.filter(s => s.status === 'andamento').length;
-    document.getElementById('totalConcluido').textContent = todosServicos.filter(s => s.status === 'concluido').length;
-    const totalVal = todosServicos.reduce((a, s) => a + (s.valor || 0), 0);
-    document.getElementById('totalValor').textContent = formatarValor(totalVal);
+    document.getElementById('cntAndamento').textContent = servicos.filter(s => s.status === 'andamento').length;
+    document.getElementById('cntParado').textContent    = servicos.filter(s => s.status === 'parado').length;
+    document.getElementById('cntConcluido').textContent = servicos.filter(s => s.status === 'concluido').length;
 
-    if (servicos.length === 0) {
+    const filtrados = filtroAtual === 'todos'
+      ? servicos
+      : servicos.filter(s => s.status === filtroAtual);
+
+    if (filtrados.length === 0) {
       lista.innerHTML = '<div class="empty"><span>🔍</span>Nenhum serviço neste filtro.</div>';
       return;
     }
 
-    const statusLabel = { pendente: '⏳ Pendente', andamento: '🔄 Em Andamento', concluido: '✅ Concluído' };
+    const statusLabel = { andamento: '🔄 Em Andamento', parado: '⛔ Parado', concluido: '✅ Concluído' };
+    const hoje = new Date().toISOString().slice(0, 10);
 
     let html = '';
-    for (const s of servicos) {
-      const ehMeu = s.responsavel && s.responsavel.toLowerCase() === meuNome;
-      const prazoVencido = s.prazo && s.prazo < hoje && s.status !== 'concluido';
+    for (const s of filtrados) {
+      const minhasViagens = viagens.filter(v => v.servicoId === s.id);
+      const totalViagens  = minhasViagens.reduce((a, v) => a + (v.quantidade || 0), 0);
+      const formAberto    = formsAbertos.has(s.id);
+
+      let tabelaViagens = '';
+      if (minhasViagens.length > 0) {
+        let linhas = '';
+        for (const v of minhasViagens) {
+          linhas += `
+            <tr>
+              <td>${escapar(v.proprietario)}</td>
+              <td style="text-align:center;font-weight:700;color:#1a73e8">${v.quantidade}</td>
+              <td>${formatarData(v.data)}</td>
+              <td class="del-cell">
+                <button class="delete-btn" onclick="deletarViagem('${v.id}')" title="Remover viagem">✕</button>
+              </td>
+            </tr>`;
+        }
+        tabelaViagens = `
+          <table>
+            <thead>
+              <tr>
+                <th>Proprietário do Caminhão</th>
+                <th style="text-align:center">Qtd. Viagens</th>
+                <th>Data</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>${linhas}</tbody>
+          </table>`;
+      } else {
+        tabelaViagens = '<div class="no-viagens">Nenhuma viagem registrada</div>';
+      }
+
       html += `
-        <div class="service-item ${s.status || ''} ${ehMeu ? 'meu' : ''}">
-          <div class="service-top">
-            <div style="flex:1;min-width:0">
-              <div class="service-cliente">${escapar(s.cliente)}</div>
-              <div class="service-tipo">🔧 ${escapar(s.tipo)}</div>
-              ${s.descricao ? `<div class="service-desc">💬 ${escapar(s.descricao)}</div>` : ''}
-              <div class="service-meta">
-                📅 Abertura: ${formatarData(s.dataAbertura)}
-                ${s.prazo ? ` &nbsp;|&nbsp; <span class="${prazoVencido ? 'prazo-vencido' : ''}">⏰ Prazo: ${formatarData(s.prazo)}${prazoVencido ? ' ⚠' : ''}</span>` : ''}
-              </div>
-              <span class="status-tag ${s.status || ''}">${statusLabel[s.status] || s.status}</span>
-              <span class="resp-tag">👤 ${escapar(s.responsavel || 'Desconhecido')}</span>
+        <div class="srv-card ${s.status || ''}">
+          <div class="srv-header">
+            <div class="srv-info">
+              <div class="srv-tipo">${escapar(s.tipo)}</div>
+              <div class="srv-cliente">👤 ${escapar(s.cliente)}</div>
+              <div class="srv-data">📅 Início: ${formatarData(s.dataInicio)}</div>
             </div>
-            <div class="service-actions">
-              ${s.valor ? `<div class="valor-tag">${formatarValor(s.valor)}</div>` : ''}
-              ${ehMeu ? `
-                <select class="status-select-mini" onchange="atualizarStatus('${s.id}', this.value)">
-                  <option value="pendente"  ${s.status === 'pendente'  ? 'selected' : ''}>⏳</option>
-                  <option value="andamento" ${s.status === 'andamento' ? 'selected' : ''}>🔄</option>
-                  <option value="concluido" ${s.status === 'concluido' ? 'selected' : ''}>✅</option>
-                </select>
-                <button class="delete-btn" onclick="deletarServico('${s.id}')" title="Remover">✕</button>
-              ` : ''}
+            <div class="srv-right">
+              <span class="badge ${s.status || ''}">${statusLabel[s.status] || s.status}</span>
+              <select class="status-select-mini" onchange="atualizarStatus('${s.id}', this.value)">
+                <option value="andamento" ${s.status === 'andamento' ? 'selected' : ''}>🔄 Andamento</option>
+                <option value="parado"    ${s.status === 'parado'    ? 'selected' : ''}>⛔ Parado</option>
+                <option value="concluido" ${s.status === 'concluido' ? 'selected' : ''}>✅ Concluído</option>
+              </select>
+              <button class="delete-btn" onclick="deletarServico('${s.id}')" title="Remover serviço" style="margin-top:4px">✕</button>
+            </div>
+          </div>
+
+          <div class="viagens-section">
+            <div class="viagens-titulo">
+              🚛 Viagens ${totalViagens > 0 ? `— <span style="color:#1a73e8">${totalViagens} no total</span>` : ''}
+            </div>
+
+            ${tabelaViagens}
+
+            <button class="btn-toggle-viagem" onclick="toggleForm('${s.id}')">
+              ${formAberto ? '▲ Cancelar' : '➕ Adicionar viagem'}
+            </button>
+
+            <div class="add-viagem-form ${formAberto ? 'aberto' : ''}">
+              <div class="row">
+                <div>
+                  <label style="margin-top:0">Proprietário do Caminhão</label>
+                  <input type="text" id="prop_${s.id}" placeholder="Nome do proprietário" />
+                </div>
+                <div>
+                  <label style="margin-top:0">Qtd. Viagens</label>
+                  <input type="number" id="qtd_${s.id}" placeholder="0" min="1" />
+                </div>
+                <div>
+                  <label style="margin-top:0">Data</label>
+                  <input type="date" id="data_${s.id}" value="${hoje}" />
+                </div>
+              </div>
+              <button class="btn-add-viagem" id="btnSalvarViagem_${s.id}" onclick="adicionarViagem('${s.id}')">
+                Salvar Viagem
+              </button>
             </div>
           </div>
         </div>`;
     }
 
     lista.innerHTML = html;
-  }
-
-  function gerarPDF() {
-    const { jsPDF } = window.jspdf;
-    const doc  = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-    const hoje = new Date().toLocaleDateString('pt-BR');
-    const servicos = servicosFiltrados();
-
-    doc.setFillColor(26, 115, 232);
-    doc.rect(0, 0, 297, 28, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Relatório de Serviços', 14, 12);
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Gerado em: ${hoje}   |   ${servicos.length} serviço(s)`, 14, 22);
-
-    const statusLabel = { pendente: 'Pendente', andamento: 'Em Andamento', concluido: 'Concluído' };
-
-    const rows = servicos.map((s, i) => [
-      i + 1,
-      s.responsavel || '-',
-      s.cliente,
-      s.tipo,
-      s.descricao || '-',
-      statusLabel[s.status] || s.status,
-      s.valor ? formatarValor(s.valor) : '-',
-      formatarData(s.dataAbertura),
-      s.prazo ? formatarData(s.prazo) : '-'
-    ]);
-
-    doc.autoTable({
-      startY: 34,
-      head: [['#', 'Responsável', 'Cliente', 'Tipo', 'Descrição', 'Status', 'Valor', 'Abertura', 'Prazo']],
-      body: rows,
-      theme: 'striped',
-      headStyles: { fillColor: [26, 115, 232], textColor: 255, fontStyle: 'bold', fontSize: 8 },
-      bodyStyles: { fontSize: 7.5 },
-      columnStyles: { 0: { cellWidth: 7 }, 6: { halign: 'right' } },
-      margin: { left: 14, right: 14 },
-      didParseCell: function (data) {
-        if (data.section === 'body' && data.column.index === 5) {
-          const v = data.cell.raw;
-          if (v === 'Pendente')    data.cell.styles.textColor = [230, 81, 0];
-          if (v === 'Em Andamento') data.cell.styles.textColor = [26, 115, 232];
-          if (v === 'Concluído')   data.cell.styles.textColor = [52, 168, 83];
-        }
-      }
-    });
-
-    const finalY = doc.lastAutoTable.finalY + 8;
-    const total  = servicos.reduce((a, s) => a + (s.valor || 0), 0);
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(142, 68, 173);
-    doc.text(`Valor total: ${formatarValor(total)}`, 14, finalY);
-
-    doc.save(`relatorio_servicos_${hoje.replace(/\//g, '-')}.pdf`);
-  }
-
-  function formatarValor(v) {
-    return (v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   }
 
   function formatarData(d) {
