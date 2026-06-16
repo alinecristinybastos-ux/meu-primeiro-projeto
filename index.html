@@ -19,16 +19,23 @@
     }
 
     header {
-      background: #1a73e8;
-      color: white;
-      padding: 16px 20px;
+      background: white;
+      padding: 10px 16px;
       display: flex;
       align-items: center;
       gap: 10px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+      border-bottom: 3px solid #f5a623;
     }
 
-    header h1 { font-size: 1.2rem; font-weight: 600; flex: 1; }
+    header img { height: 44px; flex: 1; object-fit: contain; object-position: left; }
+    header .app-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #888;
+      white-space: nowrap;
+      text-align: right;
+    }
     header .status-dot {
       width: 10px; height: 10px;
       border-radius: 50%;
@@ -49,7 +56,7 @@
 
     .card h2 {
       font-size: 1rem;
-      color: #1a73e8;
+      color: #f5a623;
       margin-bottom: 16px;
       display: flex;
       align-items: center;
@@ -80,7 +87,7 @@
     }
 
     input:focus, textarea:focus, select:focus {
-      border-color: #1a73e8;
+      border-color: #f5a623;
       background: white;
     }
 
@@ -103,7 +110,7 @@
     }
 
     .btn:active { transform: scale(0.98); }
-    .btn-primary { background: #1a73e8; color: white; }
+    .btn-primary { background: #f5a623; color: white; }
     .btn-primary:hover { opacity: 0.9; }
     .btn-success { background: #34a853; color: white; }
     .btn-success:hover { opacity: 0.9; }
@@ -128,7 +135,7 @@
     .summary-box .value {
       font-size: 1.3rem;
       font-weight: 700;
-      color: #1a73e8;
+      color: #f5a623;
     }
 
     .summary-box .label-sm {
@@ -143,7 +150,7 @@
       padding: 14px 16px;
       margin-bottom: 10px;
       box-shadow: 0 1px 5px rgba(0,0,0,0.07);
-      border-left: 4px solid #1a73e8;
+      border-left: 4px solid #f5a623;
     }
 
     .sale-item.minha { border-left-color: #34a853; }
@@ -166,8 +173,8 @@
     .sale-item .data { font-size: 0.75rem; color: #aaa; margin-top: 4px; }
     .sale-item .vendedor-tag {
       font-size: 0.72rem;
-      background: #e8f0fe;
-      color: #1a73e8;
+      background: #fff4e0;
+      color: #c47d00;
       padding: 2px 7px;
       border-radius: 20px;
       display: inline-block;
@@ -248,8 +255,8 @@
     }
 
     .filtro-btn.ativo {
-      border-color: #1a73e8;
-      background: #1a73e8;
+      border-color: #f5a623;
+      background: #f5a623;
       color: white;
     }
   </style>
@@ -257,8 +264,8 @@
 <body>
 
 <header>
-  <span>🛒</span>
-  <h1>Controle de Vendas</h1>
+  <img src="logo.png" alt="Construale" />
+  <div class="app-title">Controle de<br>Vendas</div>
   <div class="status-dot" id="statusDot" title="Conectando..."></div>
 </header>
 
@@ -507,15 +514,27 @@
     const hoje = new Date().toLocaleDateString('pt-BR');
     const vendas = vendasFiltradas();
 
-    doc.setFillColor(26, 115, 232);
-    doc.rect(0, 0, 210, 28, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Relatório de Vendas', 14, 12);
-    doc.setFontSize(10);
+    // Cabeçalho branco com borda amarela
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, 0, 210, 32, 'F');
+    doc.setFillColor(245, 166, 35);
+    doc.rect(0, 29, 210, 3, 'F');
+
+    // Logo
+    try {
+      const logoEl = document.querySelector('header img');
+      const canvas = document.createElement('canvas');
+      canvas.width = logoEl.naturalWidth;
+      canvas.height = logoEl.naturalHeight;
+      canvas.getContext('2d').drawImage(logoEl, 0, 0);
+      const logoData = canvas.toDataURL('image/png');
+      doc.addImage(logoData, 'PNG', 14, 4, 60, 22);
+    } catch(e) {}
+
+    doc.setTextColor(100, 100, 100);
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Gerado em: ${hoje}   |   ${vendas.length} venda(s)`, 14, 22);
+    doc.text(`Relatório de Vendas  |  ${hoje}  |  ${vendas.length} venda(s)`, 210 - 14, 18, { align: 'right' });
 
     const rows = vendas.map((v, i) => [
       i + 1,
@@ -528,11 +547,11 @@
     ]);
 
     doc.autoTable({
-      startY: 34,
+      startY: 36,
       head: [['#', 'Vendedor', 'Cliente', 'Produto / Serviço', 'Valor', 'Data / Hora', 'Obs.']],
       body: rows,
       theme: 'striped',
-      headStyles: { fillColor: [26, 115, 232], textColor: 255, fontStyle: 'bold', fontSize: 8 },
+      headStyles: { fillColor: [245, 166, 35], textColor: 255, fontStyle: 'bold', fontSize: 8 },
       bodyStyles: { fontSize: 7.5 },
       columnStyles: { 0: { cellWidth: 7 }, 4: { halign: 'right' } },
       margin: { left: 14, right: 14 }
