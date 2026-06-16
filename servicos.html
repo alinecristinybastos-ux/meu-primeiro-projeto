@@ -17,16 +17,23 @@
     }
 
     header {
-      background: #1a73e8;
-      color: white;
-      padding: 16px 20px;
+      background: white;
+      padding: 10px 16px;
       display: flex;
       align-items: center;
       gap: 10px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+      border-bottom: 3px solid #f5a623;
     }
 
-    header h1 { font-size: 1.2rem; font-weight: 600; flex: 1; }
+    header img { height: 44px; flex: 1; object-fit: contain; object-position: left; }
+    header .app-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #888;
+      white-space: nowrap;
+      text-align: right;
+    }
 
     .status-dot {
       width: 10px; height: 10px;
@@ -48,7 +55,7 @@
 
     .card h2 {
       font-size: 1rem;
-      color: #1a73e8;
+      color: #f5a623;
       margin-bottom: 16px;
       display: flex;
       align-items: center;
@@ -79,7 +86,7 @@
     }
 
     input:focus, select:focus {
-      border-color: #1a73e8;
+      border-color: #f5a623;
       background: white;
     }
 
@@ -100,7 +107,7 @@
     }
 
     .btn:active { transform: scale(0.98); }
-    .btn-primary { background: #1a73e8; color: white; }
+    .btn-primary { background: #f5a623; color: white; }
     .btn-primary:hover { opacity: 0.9; }
 
     /* Resumo */
@@ -130,7 +137,7 @@
       margin-top: 2px;
     }
 
-    .val.andamento { color: #1a73e8; }
+    .val.andamento { color: #f5a623; }
     .val.parado    { color: #ea4335; }
     .val.concluido { color: #34a853; }
 
@@ -155,8 +162,8 @@
     }
 
     .filtro-btn.ativo {
-      border-color: #1a73e8;
-      background: #1a73e8;
+      border-color: #f5a623;
+      background: #f5a623;
       color: white;
     }
 
@@ -177,7 +184,7 @@
       gap: 10px;
     }
 
-    .srv-card.andamento .srv-header { border-left-color: #1a73e8; }
+    .srv-card.andamento .srv-header { border-left-color: #f5a623; }
     .srv-card.parado    .srv-header { border-left-color: #ea4335; }
     .srv-card.concluido .srv-header { border-left-color: #34a853; }
 
@@ -197,7 +204,7 @@
       white-space: nowrap;
     }
 
-    .badge.andamento { background: #e8f0fe; color: #1a73e8; }
+    .badge.andamento { background: #fff4e0; color: #f5a623; }
     .badge.parado    { background: #fce8e6; color: #ea4335; }
     .badge.concluido { background: #e6f4ea; color: #34a853; }
 
@@ -289,7 +296,7 @@
     .btn-add-viagem {
       margin-top: 10px;
       padding: 8px 14px;
-      background: #1a73e8;
+      background: #f5a623;
       color: white;
       border: none;
       border-radius: 8px;
@@ -303,7 +310,7 @@
     .btn-toggle-viagem {
       font-size: 0.78rem;
       font-weight: 600;
-      color: #1a73e8;
+      color: #f5a623;
       background: none;
       border: none;
       cursor: pointer;
@@ -366,8 +373,8 @@
 <body>
 
 <header>
-  <span>🚛</span>
-  <h1>Controle de Serviços</h1>
+  <img src="logo.png" alt="Construale" />
+  <div class="app-title">Controle de<br>Serviços</div>
   <div class="status-dot" id="statusDot" title="Conectando..."></div>
 </header>
 
