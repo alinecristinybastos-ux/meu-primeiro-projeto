@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Controle de Vendas</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #f0f4f8;
+      color: #333;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1a73e8;
+      color: white;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+
+    header h1 { font-size: 1.2rem; font-weight: 600; }
+    header span { font-size: 1.5rem; }
+
+    .container { padding: 16px; max-width: 600px; margin: 0 auto; }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .card h2 {
+      font-size: 1rem;
+      color: #1a73e8;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #555;
+      margin-bottom: 4px;
+      margin-top: 12px;
+    }
+
+    label:first-of-type { margin-top: 0; }
+
+    input, textarea, select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1.5px solid #dde3ec;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      color: #333;
+      background: #fafbff;
+      transition: border 0.2s;
+      outline: none;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      border-color: #1a73e8;
+      background: white;
+    }
+
+    textarea { resize: vertical; min-height: 60px; }
+
+    .row { display: flex; gap: 10px; }
+    .row > div { flex: 1; }
+
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 13px;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      margin-top: 16px;
+    }
+
+    .btn:active { transform: scale(0.98); }
+    .btn-primary { background: #1a73e8; color: white; }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-success { background: #34a853; color: white; }
+    .btn-success:hover { opacity: 0.9; }
+    .btn-danger { background: #ea4335; color: white; margin-top: 8px; }
+    .btn-danger:hover { opacity: 0.9; }
+
+    .summary {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .summary-box {
+      flex: 1;
+      background: white;
+      border-radius: 10px;
+      padding: 14px 10px;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .summary-box .value {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #1a73e8;
+    }
+
+    .summary-box .label-sm {
+      font-size: 0.72rem;
+      color: #888;
+      margin-top: 2px;
+    }
+
+    .sale-item {
+      background: white;
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      box-shadow: 0 1px 5px rgba(0,0,0,0.07);
+      border-left: 4px solid #1a73e8;
+    }
+
+    .sale-item .sale-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .sale-item .cliente { font-weight: 600; font-size: 0.95rem; }
+    .sale-item .valor {
+      font-weight: 700;
+      color: #34a853;
+      font-size: 1rem;
+      white-space: nowrap;
+    }
+
+    .sale-item .produto { font-size: 0.82rem; color: #555; margin-top: 2px; }
+    .sale-item .data { font-size: 0.75rem; color: #aaa; margin-top: 4px; }
+
+    .delete-btn {
+      background: none;
+      border: none;
+      color: #ccc;
+      font-size: 1.1rem;
+      cursor: pointer;
+      padding: 0 0 0 8px;
+      line-height: 1;
+    }
+
+    .delete-btn:hover { color: #ea4335; }
+
+    .empty {
+      text-align: center;
+      color: #bbb;
+      padding: 30px 0;
+      font-size: 0.9rem;
+    }
+
+    .empty span { display: block; font-size: 2rem; margin-bottom: 8px; }
+
+    .alert {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #34a853;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      z-index: 999;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+
+    .alert.show { opacity: 1; }
+
+    .vendedor-section {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+
+    .vendedor-section input {
+      flex: 1;
+    }
+
+    .date-header {
+      font-size: 0.78rem;
+      color: #aaa;
+      text-align: center;
+      margin: 6px 0 10px;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <span>🛒</span>
+  <h1>Controle de Vendas</h1>
+</header>
+
+<div id="alert" class="alert">Venda registrada!</div>
+
+<div class="container">
+
+  <!-- Vendedor -->
+  <div class="card">
+    <h2>👤 Vendedor</h2>
+    <label>Seu nome</label>
+    <input type="text" id="vendedorNome" placeholder="Digite seu nome" />
+  </div>
+
+  <!-- Formulário de venda -->
+  <div class="card">
+    <h2>➕ Nova Venda</h2>
+
+    <label>Nome do cliente</label>
+    <input type="text" id="cliente" placeholder="Ex: João da Silva" />
+
+    <label>Produto / Serviço</label>
+    <input type="text" id="produto" placeholder="Ex: Pacote Premium, Consultoria..." />
+
+    <label>Valor (R$)</label>
+    <input type="number" id="valor" placeholder="0,00" min="0" step="0.01" />
+
+    <div class="row">
+      <div>
+        <label>Data</label>
+        <input type="date" id="data" />
+      </div>
+      <div>
+        <label>Hora</label>
+        <input type="time" id="hora" />
+      </div>
+    </div>
+
+    <label>Observação (opcional)</label>
+    <textarea id="obs" placeholder="Alguma observação sobre a venda..."></textarea>
+
+    <button class="btn btn-primary" onclick="adicionarVenda()">✔ Registrar Venda</button>
+  </div>
+
+  <!-- Resumo -->
+  <div class="summary" id="summaryArea" style="display:none">
+    <div class="summary-box">
+      <div class="value" id="totalVendas">0</div>
+      <div class="label-sm">Vendas hoje</div>
+    </div>
+    <div class="summary-box">
+      <div class="value" id="totalValor">R$ 0</div>
+      <div class="label-sm">Total do dia</div>
+    </div>
+  </div>
+
+  <!-- Lista de vendas -->
+  <div id="listaVendas">
+    <div class="empty" id="emptyMsg"><span>📋</span>Nenhuma venda registrada ainda.</div>
+  </div>
+
+  <!-- Botões de ação -->
+  <div id="botoesRelatorio" style="display:none">
+    <button class="btn btn-success" onclick="gerarPDF()">📄 Gerar Relatório PDF</button>
+    <button class="btn btn-danger" onclick="limparVendas()">🗑 Limpar todas as vendas</button>
+  </div>
+
+</div>
+
+<script>
+  let vendas = JSON.parse(localStorage.getItem('vendas') || '[]');
+
+  // Preenche data e hora atual ao carregar
+  window.onload = function () {
+    const agora = new Date();
+    document.getElementById('data').value = agora.toISOString().slice(0, 10);
+    document.getElementById('hora').value = agora.toTimeString().slice(0, 5);
+
+    const nomeGuardado = localStorage.getItem('vendedorNome') || '';
+    document.getElementById('vendedorNome').value = nomeGuardado;
+    document.getElementById('vendedorNome').addEventListener('change', function () {
+      localStorage.setItem('vendedorNome', this.value);
+    });
+
+    renderVendas();
+  };
+
+  function adicionarVenda() {
+    const cliente = document.getElementById('cliente').value.trim();
+    const produto = document.getElementById('produto').value.trim();
+    const valor = parseFloat(document.getElementById('valor').value);
+    const data = document.getElementById('data').value;
+    const hora = document.getElementById('hora').value;
+    const obs = document.getElementById('obs').value.trim();
+
+    if (!cliente) { alert('Informe o nome do cliente.'); return; }
+    if (!produto) { alert('Informe o produto ou serviço.'); return; }
+    if (!valor || valor <= 0) { alert('Informe um valor válido.'); return; }
+    if (!data) { alert('Informe a data.'); return; }
+
+    vendas.push({ id: Date.now(), cliente, produto, valor, data, hora, obs });
+    localStorage.setItem('vendas', JSON.stringify(vendas));
+
+    // Limpa o form mas mantém data/hora
+    document.getElementById('cliente').value = '';
+    document.getElementById('produto').value = '';
+    document.getElementById('valor').value = '';
+    document.getElementById('obs').value = '';
+    document.getElementById('cliente').focus();
+
+    mostrarAlerta('✔ Venda registrada com sucesso!');
+    renderVendas();
+  }
+
+  function deletarVenda(id) {
+    if (!confirm('Remover esta venda?')) return;
+    vendas = vendas.filter(v => v.id !== id);
+    localStorage.setItem('vendas', JSON.stringify(vendas));
+    renderVendas();
+  }
+
+  function renderVendas() {
+    const lista = document.getElementById('listaVendas');
+    const empty = document.getElementById('emptyMsg');
+    const summary = document.getElementById('summaryArea');
+    const botoes = document.getElementById('botoesRelatorio');
+
+    if (vendas.length === 0) {
+      lista.innerHTML = '<div class="empty" id="emptyMsg"><span>📋</span>Nenhuma venda registrada ainda.</div>';
+      summary.style.display = 'none';
+      botoes.style.display = 'none';
+      return;
+    }
+
+    summary.style.display = 'flex';
+    botoes.style.display = 'block';
+
+    const total = vendas.reduce((s, v) => s + v.valor, 0);
+    document.getElementById('totalVendas').textContent = vendas.length;
+    document.getElementById('totalValor').textContent = formatarValor(total);
+
+    let html = '';
+    const ordenadas = [...vendas].reverse();
+    for (const v of ordenadas) {
+      html += `
+        <div class="sale-item">
+          <div class="sale-top">
+            <div>
+              <div class="cliente">${escapar(v.cliente)}</div>
+              <div class="produto">📦 ${escapar(v.produto)}</div>
+              ${v.obs ? `<div class="produto" style="color:#888">💬 ${escapar(v.obs)}</div>` : ''}
+              <div class="data">🕐 ${formatarData(v.data)} ${v.hora ? 'às ' + v.hora : ''}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:4px">
+              <div class="valor">${formatarValor(v.valor)}</div>
+              <button class="delete-btn" onclick="deletarVenda(${v.id})" title="Remover">✕</button>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    lista.innerHTML = html;
+  }
+
+  function gerarPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const vendedor = document.getElementById('vendedorNome').value.trim() || 'Não informado';
+    const hoje = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+    // Cabeçalho
+    doc.setFillColor(26, 115, 232);
+    doc.rect(0, 0, 210, 28, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Relatório de Vendas', 14, 12);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Vendedor: ${vendedor}   |   Data: ${hoje}`, 14, 22);
+
+    // Tabela
+    const rows = vendas.map((v, i) => [
+      i + 1,
+      v.cliente,
+      v.produto,
+      formatarValor(v.valor),
+      `${formatarData(v.data)} ${v.hora || ''}`.trim(),
+      v.obs || '-'
+    ]);
+
+    doc.autoTable({
+      startY: 34,
+      head: [['#', 'Cliente', 'Produto / Serviço', 'Valor', 'Data / Hora', 'Obs.']],
+      body: rows,
+      theme: 'striped',
+      headStyles: { fillColor: [26, 115, 232], textColor: 255, fontStyle: 'bold', fontSize: 9 },
+      bodyStyles: { fontSize: 8.5 },
+      columnStyles: { 0: { cellWidth: 8 }, 3: { halign: 'right' } },
+      margin: { left: 14, right: 14 }
+    });
+
+    // Rodapé com total
+    const finalY = doc.lastAutoTable.finalY + 8;
+    const total = vendas.reduce((s, v) => s + v.valor, 0);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(52, 168, 83);
+    doc.text(`Total: ${formatarValor(total)}   |   ${vendas.length} venda(s)`, 14, finalY);
+
+    doc.setFontSize(7.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(170);
+    doc.text(`Gerado em ${new Date().toLocaleString('pt-BR')}`, 14, finalY + 8);
+
+    doc.save(`vendas_${vendedor.replace(/\s+/g, '_')}_${hoje.replace(/\//g, '-')}.pdf`);
+  }
+
+  function limparVendas() {
+    if (!confirm('Tem certeza que deseja apagar todas as vendas? Esta ação não pode ser desfeita.')) return;
+    vendas = [];
+    localStorage.setItem('vendas', JSON.stringify(vendas));
+    renderVendas();
+  }
+
+  function formatarValor(v) {
+    return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  }
+
+  function formatarData(d) {
+    if (!d) return '';
+    const [y, m, dia] = d.split('-');
+    return `${dia}/${m}/${y}`;
+  }
+
+  function escapar(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function mostrarAlerta(msg) {
+    const el = document.getElementById('alert');
+    el.textContent = msg;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 2500);
+  }
+</script>
+</body>
+</html>
