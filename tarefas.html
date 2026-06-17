@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tarefas do Dia</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #f0f4f8;
+      color: #333;
+      min-height: 100vh;
+    }
+
+    header {
+      background: white;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+      border-bottom: 3px solid #f5a623;
+    }
+
+    header h1 {
+      font-size: 1.2rem;
+      color: #333;
+    }
+
+    header .clock {
+      margin-left: auto;
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: #f5a623;
+      background: #fff8ee;
+      padding: 4px 12px;
+      border-radius: 20px;
+      border: 1px solid #f5a623;
+    }
+
+    .container {
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    /* FORMULÁRIO */
+    .form-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      margin-bottom: 20px;
+    }
+
+    .form-card h2 {
+      font-size: 1rem;
+      margin-bottom: 14px;
+      color: #555;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .form-row input[type="text"],
+    .form-row input[type="time"],
+    .form-row select {
+      flex: 1;
+      min-width: 120px;
+      padding: 9px 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      color: #333;
+      background: #fafafa;
+      outline: none;
+      transition: border 0.2s;
+    }
+
+    .form-row input:focus,
+    .form-row select:focus {
+      border-color: #f5a623;
+      background: #fff;
+    }
+
+    .form-row input[type="text"] { flex: 2; }
+
+    .btn {
+      padding: 9px 18px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      transition: background 0.2s, transform 0.1s;
+    }
+
+    .btn:active { transform: scale(0.97); }
+
+    .btn-primary {
+      background: #f5a623;
+      color: white;
+    }
+
+    .btn-primary:hover { background: #e0941a; }
+
+    .btn-danger {
+      background: #e74c3c;
+      color: white;
+      padding: 6px 12px;
+      font-size: 0.8rem;
+    }
+
+    .btn-danger:hover { background: #c0392b; }
+
+    .btn-voice {
+      background: #4a90d9;
+      color: white;
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .btn-voice:hover { background: #357abd; }
+    .btn-voice.recording { background: #e74c3c; animation: pulse 1s infinite; }
+
+    .btn-complete {
+      background: #27ae60;
+      color: white;
+      padding: 6px 12px;
+      font-size: 0.8rem;
+    }
+
+    .btn-complete:hover { background: #1e8449; }
+    .btn-complete.done { background: #95a5a6; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    /* FILTROS */
+    .filters {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .filter-btn {
+      padding: 6px 14px;
+      border: 1px solid #ddd;
+      border-radius: 20px;
+      background: white;
+      cursor: pointer;
+      font-size: 0.85rem;
+      color: #555;
+      transition: all 0.2s;
+    }
+
+    .filter-btn.active {
+      background: #f5a623;
+      color: white;
+      border-color: #f5a623;
+    }
+
+    /* LISTA DE TAREFAS */
+    #lista-tarefas { display: flex; flex-direction: column; gap: 10px; }
+
+    .task-card {
+      background: white;
+      border-radius: 12px;
+      padding: 14px 16px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.07);
+      border-left: 4px solid #f5a623;
+      transition: transform 0.1s;
+      position: relative;
+    }
+
+    .task-card:hover { transform: translateX(2px); }
+    .task-card.completed { border-left-color: #27ae60; opacity: 0.7; }
+    .task-card.alarming { border-left-color: #e74c3c; animation: shake 0.5s 3; }
+    .task-card.priority-alta { border-left-color: #e74c3c; }
+    .task-card.priority-media { border-left-color: #f5a623; }
+    .task-card.priority-baixa { border-left-color: #27ae60; }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      75% { transform: translateX(5px); }
+    }
+
+    .task-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .task-title {
+      font-size: 1rem;
+      font-weight: 600;
+      flex: 1;
+    }
+
+    .task-title.done { text-decoration: line-through; color: #999; }
+
+    .task-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 6px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      font-size: 0.75rem;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 600;
+    }
+
+    .badge-time { background: #fff3e0; color: #e65c00; }
+    .badge-alarm { background: #fde8e8; color: #c0392b; }
+    .badge-priority-alta { background: #fde8e8; color: #c0392b; }
+    .badge-priority-media { background: #fff3e0; color: #e65c00; }
+    .badge-priority-baixa { background: #e8f8f0; color: #1e8449; }
+
+    .task-notes {
+      margin-top: 10px;
+      background: #f9f9f9;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 0.88rem;
+      color: #555;
+      border-left: 3px solid #4a90d9;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .task-notes:empty { display: none; }
+
+    .task-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+
+    .voice-status {
+      font-size: 0.8rem;
+      color: #e74c3c;
+      margin-top: 6px;
+      display: none;
+    }
+
+    .voice-status.active { display: block; }
+
+    /* VAZIO */
+    .empty {
+      text-align: center;
+      color: #bbb;
+      padding: 40px 0;
+      font-size: 0.95rem;
+    }
+
+    /* ALARME MODAL */
+    .alarm-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .alarm-overlay.show { display: flex; }
+
+    .alarm-modal {
+      background: white;
+      border-radius: 16px;
+      padding: 30px;
+      text-align: center;
+      max-width: 340px;
+      width: 90%;
+      animation: popIn 0.3s ease;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0.7); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .alarm-modal .alarm-icon { font-size: 3rem; margin-bottom: 10px; }
+    .alarm-modal h2 { font-size: 1.2rem; margin-bottom: 6px; color: #e74c3c; }
+    .alarm-modal p { color: #555; font-size: 0.95rem; margin-bottom: 20px; }
+    .alarm-modal .btn { width: 100%; }
+
+    /* PROGRESS */
+    .progress-bar {
+      background: #eee;
+      border-radius: 10px;
+      height: 8px;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #f5a623, #e0941a);
+      border-radius: 10px;
+      transition: width 0.5s;
+    }
+
+    .progress-text {
+      font-size: 0.82rem;
+      color: #888;
+      margin-bottom: 8px;
+    }
+
+    /* RESPONSIVE */
+    @media (max-width: 500px) {
+      .form-row { flex-direction: column; }
+      .form-row input[type="text"] { min-width: unset; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <span style="font-size:1.5rem">📋</span>
+  <h1>Tarefas do Dia</h1>
+  <div class="clock" id="relogio">00:00:00</div>
+</header>
+
+<div class="container">
+
+  <!-- FORMULÁRIO -->
+  <div class="form-card">
+    <h2>➕ Nova Tarefa</h2>
+    <div class="form-row">
+      <input type="text" id="input-titulo" placeholder="Título da tarefa..." />
+      <input type="time" id="input-horario" />
+      <select id="input-prioridade">
+        <option value="media">Prioridade Média</option>
+        <option value="alta">Prioridade Alta</option>
+        <option value="baixa">Prioridade Baixa</option>
+      </select>
+    </div>
+    <div class="form-row" style="margin-top:10px">
+      <button class="btn btn-primary" onclick="adicionarTarefa()">Adicionar Tarefa</button>
+    </div>
+  </div>
+
+  <!-- PROGRESSO -->
+  <div class="progress-text" id="progresso-texto">0 de 0 tarefas concluídas</div>
+  <div class="progress-bar">
+    <div class="progress-fill" id="progresso-fill" style="width:0%"></div>
+  </div>
+
+  <!-- FILTROS -->
+  <div class="filters">
+    <button class="filter-btn active" onclick="setFiltro('todas', this)">Todas</button>
+    <button class="filter-btn" onclick="setFiltro('pendentes', this)">Pendentes</button>
+    <button class="filter-btn" onclick="setFiltro('concluidas', this)">Concluídas</button>
+    <button class="filter-btn" onclick="setFiltro('alta', this)">🔴 Alta</button>
+    <button class="filter-btn" onclick="setFiltro('media', this)">🟡 Média</button>
+    <button class="filter-btn" onclick="setFiltro('baixa', this)">🟢 Baixa</button>
+  </div>
+
+  <!-- LISTA -->
+  <div id="lista-tarefas"></div>
+
+</div>
+
+<!-- MODAL DE ALARME -->
+<div class="alarm-overlay" id="alarm-overlay">
+  <div class="alarm-modal">
+    <div class="alarm-icon">🔔</div>
+    <h2>Hora da Tarefa!</h2>
+    <p id="alarm-task-name"></p>
+    <button class="btn btn-primary" onclick="fecharAlarme()">OK, entendido!</button>
+  </div>
+</div>
+
+<script>
+  // ─── ESTADO ───────────────────────────────────────────────────
+  let tarefas = JSON.parse(localStorage.getItem('tarefas-dia') || '[]');
+  let filtroAtual = 'todas';
+  let alarmesFired = new Set(JSON.parse(sessionStorage.getItem('alarmesFired') || '[]'));
+  let recognitionAtivo = null; // tarefa com voz ativa
+  let recognition = null;
+
+  // ─── RELÓGIO E VERIFICAÇÃO DE ALARMES ─────────────────────────
+  function atualizarRelogio() {
+    const agora = new Date();
+    const h = String(agora.getHours()).padStart(2, '0');
+    const m = String(agora.getMinutes()).padStart(2, '0');
+    const s = String(agora.getSeconds()).padStart(2, '0');
+    document.getElementById('relogio').textContent = `${h}:${m}:${s}`;
+
+    // Verifica alarmes a cada minuto cheio (segundos = 0)
+    if (agora.getSeconds() === 0) {
+      verificarAlarmes(h + ':' + m);
+    }
+  }
+
+  function verificarAlarmes(horaAtual) {
+    tarefas.forEach(t => {
+      if (t.horario && t.horario === horaAtual && !t.concluida && !alarmesFired.has(t.id)) {
+        alarmesFired.add(t.id);
+        sessionStorage.setItem('alarmesFired', JSON.stringify([...alarmesFired]));
+        dispararAlarme(t);
+      }
+    });
+  }
+
+  function dispararAlarme(tarefa) {
+    // Som via Web Audio API
+    tocarSom();
+
+    // Notificação nativa se permitida
+    if (Notification.permission === 'granted') {
+      new Notification('⏰ Hora da Tarefa!', {
+        body: tarefa.titulo,
+        icon: 'logo.png'
+      });
+    }
+
+    // Modal visual
+    document.getElementById('alarm-task-name').textContent = tarefa.titulo;
+    document.getElementById('alarm-overlay').classList.add('show');
+
+    // Destaca o card
+    const card = document.querySelector(`[data-id="${tarefa.id}"]`);
+    if (card) card.classList.add('alarming');
+  }
+
+  function tocarSom() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const sequencia = [523.25, 659.25, 783.99, 1046.50];
+      sequencia.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = freq;
+        osc.type = 'sine';
+        gain.gain.setValueAtTime(0.3, ctx.currentTime + i * 0.15);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.15 + 0.3);
+        osc.start(ctx.currentTime + i * 0.15);
+        osc.stop(ctx.currentTime + i * 0.15 + 0.3);
+      });
+    } catch(e) {}
+  }
+
+  function fecharAlarme() {
+    document.getElementById('alarm-overlay').classList.remove('show');
+    document.querySelectorAll('.alarming').forEach(el => el.classList.remove('alarming'));
+  }
+
+  // ─── CRUD TAREFAS ──────────────────────────────────────────────
+  function adicionarTarefa() {
+    const titulo = document.getElementById('input-titulo').value.trim();
+    const horario = document.getElementById('input-horario').value;
+    const prioridade = document.getElementById('input-prioridade').value;
+
+    if (!titulo) {
+      document.getElementById('input-titulo').focus();
+      document.getElementById('input-titulo').style.borderColor = '#e74c3c';
+      setTimeout(() => document.getElementById('input-titulo').style.borderColor = '', 1500);
+      return;
+    }
+
+    const tarefa = {
+      id: Date.now().toString(),
+      titulo,
+      horario,
+      prioridade,
+      notas: '',
+      concluida: false,
+      criadaEm: new Date().toISOString()
+    };
+
+    tarefas.unshift(tarefa);
+    salvar();
+    renderizar();
+
+    document.getElementById('input-titulo').value = '';
+    document.getElementById('input-horario').value = '';
+
+    // Pede permissão de notificação se ainda não deu
+    if (Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }
+
+  function concluirTarefa(id) {
+    const t = tarefas.find(t => t.id === id);
+    if (t) { t.concluida = !t.concluida; salvar(); renderizar(); }
+  }
+
+  function excluirTarefa(id) {
+    tarefas = tarefas.filter(t => t.id !== id);
+    salvar();
+    renderizar();
+  }
+
+  function salvar() {
+    localStorage.setItem('tarefas-dia', JSON.stringify(tarefas));
+  }
+
+  // ─── VOZ ───────────────────────────────────────────────────────
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  function iniciarVoz(id) {
+    if (!SR) {
+      alert('Seu navegador não suporta reconhecimento de voz. Use Chrome ou Edge.');
+      return;
+    }
+
+    // Se já está gravando esta tarefa, para
+    if (recognitionAtivo === id) {
+      pararVoz();
+      return;
+    }
+
+    // Para qualquer gravação anterior
+    if (recognition) { try { recognition.stop(); } catch(e){} }
+
+    recognitionAtivo = id;
+    recognition = new SR();
+    recognition.lang = 'pt-BR';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    const btn = document.querySelector(`[data-id="${id}"] .btn-voice`);
+    const status = document.querySelector(`[data-id="${id}"] .voice-status`);
+
+    if (btn) { btn.classList.add('recording'); btn.innerHTML = '🔴 Parar'; }
+    if (status) { status.classList.add('active'); status.textContent = '🎙️ Ouvindo... fale a observação'; }
+
+    recognition.onresult = (event) => {
+      const texto = event.results[0][0].transcript;
+      const t = tarefas.find(t => t.id === id);
+      if (t) {
+        t.notas = t.notas ? t.notas + '\n' + texto : texto;
+        salvar();
+        renderizar();
+      }
+    };
+
+    recognition.onerror = (event) => {
+      const status = document.querySelector(`[data-id="${id}"] .voice-status`);
+      if (status) {
+        status.textContent = '❌ Erro: ' + (event.error === 'no-speech' ? 'Nenhuma fala detectada' : event.error);
+        setTimeout(() => pararVoz(), 2000);
+      }
+    };
+
+    recognition.onend = () => { pararVoz(); };
+    recognition.start();
+  }
+
+  function pararVoz() {
+    if (recognition) { try { recognition.stop(); } catch(e){} recognition = null; }
+    if (recognitionAtivo) {
+      const btn = document.querySelector(`[data-id="${recognitionAtivo}"] .btn-voice`);
+      const status = document.querySelector(`[data-id="${recognitionAtivo}"] .voice-status`);
+      if (btn) { btn.classList.remove('recording'); btn.innerHTML = '🎙️ Voz'; }
+      if (status) { status.classList.remove('active'); }
+      recognitionAtivo = null;
+    }
+  }
+
+  // ─── RENDER ───────────────────────────────────────────────────
+  function setFiltro(filtro, el) {
+    filtroAtual = filtro;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    renderizar();
+  }
+
+  function renderizar() {
+    const lista = document.getElementById('lista-tarefas');
+
+    // Progresso
+    const total = tarefas.length;
+    const concluidas = tarefas.filter(t => t.concluida).length;
+    const pct = total ? Math.round((concluidas / total) * 100) : 0;
+    document.getElementById('progresso-texto').textContent = `${concluidas} de ${total} tarefas concluídas (${pct}%)`;
+    document.getElementById('progresso-fill').style.width = pct + '%';
+
+    // Filtragem
+    let visiveis = tarefas;
+    if (filtroAtual === 'pendentes') visiveis = tarefas.filter(t => !t.concluida);
+    else if (filtroAtual === 'concluidas') visiveis = tarefas.filter(t => t.concluida);
+    else if (['alta','media','baixa'].includes(filtroAtual))
+      visiveis = tarefas.filter(t => t.prioridade === filtroAtual);
+
+    // Ordenar por horário
+    visiveis = [...visiveis].sort((a, b) => {
+      if (!a.horario && !b.horario) return 0;
+      if (!a.horario) return 1;
+      if (!b.horario) return -1;
+      return a.horario.localeCompare(b.horario);
+    });
+
+    if (visiveis.length === 0) {
+      lista.innerHTML = '<div class="empty">📭 Nenhuma tarefa aqui ainda.</div>';
+      return;
+    }
+
+    lista.innerHTML = visiveis.map(t => `
+      <div class="task-card priority-${t.prioridade} ${t.concluida ? 'completed' : ''}" data-id="${t.id}">
+        <div class="task-header">
+          <div class="task-title ${t.concluida ? 'done' : ''}">${escapeHtml(t.titulo)}</div>
+        </div>
+        <div class="task-meta">
+          ${t.horario ? `<span class="badge badge-time">⏰ ${t.horario}</span>` : ''}
+          <span class="badge badge-priority-${t.prioridade}">${labelPrioridade(t.prioridade)}</span>
+          ${t.horario ? '<span class="badge badge-alarm">🔔 Alarme ativo</span>' : ''}
+        </div>
+        ${t.notas ? `<div class="task-notes">📝 ${escapeHtml(t.notas)}</div>` : ''}
+        <div class="voice-status"></div>
+        <div class="task-actions">
+          <button class="btn btn-complete ${t.concluida ? 'done' : ''}" onclick="concluirTarefa('${t.id}')">
+            ${t.concluida ? '↩️ Reabrir' : '✅ Concluir'}
+          </button>
+          ${SR ? `<button class="btn btn-voice" onclick="iniciarVoz('${t.id}')">🎙️ Voz</button>` : ''}
+          <button class="btn btn-danger" onclick="excluirTarefa('${t.id}')">🗑️ Excluir</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function labelPrioridade(p) {
+    return p === 'alta' ? '🔴 Alta' : p === 'media' ? '🟡 Média' : '🟢 Baixa';
+  }
+
+  function escapeHtml(str) {
+    const d = document.createElement('div');
+    d.appendChild(document.createTextNode(str));
+    return d.innerHTML;
+  }
+
+  // ─── INIT ─────────────────────────────────────────────────────
+  setInterval(atualizarRelogio, 1000);
+  atualizarRelogio();
+
+  // Tecla Enter no campo de título
+  document.getElementById('input-titulo').addEventListener('keydown', e => {
+    if (e.key === 'Enter') adicionarTarefa();
+  });
+
+  // Solicita permissão de notificação
+  if (Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+
+  renderizar();
+</script>
+</body>
+</html>
