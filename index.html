@@ -351,6 +351,58 @@
       color: #888;
       margin-top: 4px;
     }
+
+    .edit-status-row {
+      display: flex;
+      gap: 6px;
+      margin-top: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .select-sm {
+      width: auto;
+      padding: 4px 8px;
+      font-size: 0.72rem;
+      border-radius: 20px;
+      border: 1.5px solid #dde3ec;
+    }
+
+    .pagamento-edit-box {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .input-sm {
+      width: auto;
+      flex: 1;
+      min-width: 110px;
+      padding: 6px 8px;
+      font-size: 0.78rem;
+    }
+
+    .btn-salvar-pag {
+      background: #f5a623;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .btn-salvar-pag:hover { opacity: 0.9; }
+
+    .data-receb-texto {
+      font-size: 0.75rem;
+      color: #888;
+      margin-top: 4px;
+    }
   </style>
 </head>
 <body>
@@ -637,10 +689,48 @@
   }
 
   async function toggleLancado(id, novoValor) {
+    const msg = novoValor
+      ? 'Confirma que esta venda foi lançada no sistema?'
+      : 'Confirma que deseja desmarcar esta venda como lançada no sistema?';
+    if (!confirm(msg)) return;
     try {
       await db.collection('vendas').doc(id).update({ lancado: novoValor });
     } catch (e) {
       mostrarAlerta('Erro ao atualizar.', true);
+    }
+  }
+
+  async function atualizarStatusEntrega(id, novoStatus) {
+    try {
+      await db.collection('vendas').doc(id).update({ statusEntrega: novoStatus });
+    } catch (e) {
+      mostrarAlerta('Erro ao atualizar status de entrega.', true);
+    }
+  }
+
+  async function salvarPagamento(id) {
+    const venda = todasVendas.find(v => v.id === id);
+    if (!venda) return;
+    const statusPagamento = document.getElementById(`selPag-${id}`).value;
+    const valorTotal = venda.valor || 0;
+    let valorPago = parseFloat(document.getElementById(`valorPagoEdit-${id}`).value) || 0;
+    if (valorPago > valorTotal) valorPago = valorTotal;
+    if (statusPagamento === 'pago') valorPago = valorTotal;
+    const dataRecebimento = document.getElementById(`dataRecebEdit-${id}`).value;
+
+    if (valorPago > 0 && !dataRecebimento) {
+      mostrarAlerta('Informe a data do recebimento.', true);
+      return;
+    }
+
+    try {
+      await db.collection('vendas').doc(id).update({
+        statusPagamento, valorPago,
+        dataRecebimento: valorPago > 0 ? dataRecebimento : ''
+      });
+      mostrarAlerta('✔ Pagamento atualizado!');
+    } catch (e) {
+      mostrarAlerta('Erro ao atualizar pagamento.', true);
     }
   }
 
@@ -697,6 +787,7 @@
       const lancado = !!v.lancado;
       const itens = v.itens && v.itens.length ? v.itens : [{ produto: v.produto, valor: v.valor }];
       const produtosTxt = itens.map(it => `📦 ${escapar(it.produto)} - ${formatarValor(it.valor)}`).join('<br>');
+      const dataRecebimento = v.dataRecebimento || '';
       html += `
         <div class="sale-item ${ehMinha ? 'minha' : ''} ${statusEntrega === 'a_entregar' ? 'a-entregar' : ''}">
           <div class="sale-top">
@@ -706,12 +797,24 @@
               ${v.obs ? `<div class="produto" style="color:#888">💬 ${escapar(v.obs)}</div>` : ''}
               <div class="data">🕐 ${formatarData(v.data)}${v.hora ? ' às ' + v.hora : ''}</div>
               <span class="vendedor-tag">👤 ${escapar(v.vendedor || 'Desconhecido')}</span>
-              <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
-                <span class="badge ${statusEntrega}">${statusEntrega === 'entregue' ? '✔ Entregue' : '⏳ A Entregar'}</span>
-                <span class="badge ${statusPagamento}">${statusPagamento === 'pago' ? '💰 Pago' : '⏳ A Receber'}</span>
+              <div class="edit-status-row">
+                <select class="select-sm" onchange="atualizarStatusEntrega('${v.id}', this.value)">
+                  <option value="a_entregar" ${statusEntrega === 'a_entregar' ? 'selected' : ''}>⏳ A Entregar</option>
+                  <option value="entregue" ${statusEntrega === 'entregue' ? 'selected' : ''}>✔ Entregue</option>
+                </select>
+                <select class="select-sm" id="selPag-${v.id}">
+                  <option value="a_receber" ${statusPagamento === 'a_receber' ? 'selected' : ''}>⏳ A Receber</option>
+                  <option value="pago" ${statusPagamento === 'pago' ? 'selected' : ''}>💰 Pago</option>
+                </select>
                 <span class="badge ${lancado ? 'lancado' : 'nao-lancado'}" onclick="toggleLancado('${v.id}', ${!lancado})">${lancado ? '✔ Lançado no Sistema' : '○ Não Lançado'}</span>
               </div>
+              <div class="pagamento-edit-box">
+                <input type="number" class="input-sm" id="valorPagoEdit-${v.id}" placeholder="Valor recebido (R$)" min="0" step="0.01" value="${valorPago || ''}" />
+                <input type="date" class="input-sm" id="dataRecebEdit-${v.id}" value="${dataRecebimento}" />
+                <button class="btn-salvar-pag" onclick="salvarPagamento('${v.id}')">💾 Salvar Pagamento</button>
+              </div>
               ${statusPagamento === 'a_receber' && falta > 0 ? `<div class="falta-texto">Falta pagar: ${formatarValor(falta)}</div>` : ''}
+              ${dataRecebimento && valorPago > 0 ? `<div class="data-receb-texto">💵 Recebido em ${formatarData(dataRecebimento)}</div>` : ''}
             </div>
             <div style="display:flex;align-items:center;gap:4px">
               <div class="valor">${formatarValor(v.valor)}</div>
