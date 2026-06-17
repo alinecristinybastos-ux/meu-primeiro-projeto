@@ -155,12 +155,19 @@
 
     .sale-item.minha { border-left-color: #34a853; }
 
-    .sale-item.a-entregar {
-      border-left-color: #ea4335;
-      background: #fff5f5;
+    .sale-item.a-receber {
+      border-right: 4px solid #f5a623;
+      background: #fff7ec;
     }
 
-    .sale-item.a-entregar .cliente { color: #c0392b; }
+    .sale-item.a-receber .cliente { color: #c47d00; }
+
+    .sale-item.a-entregar {
+      border-left-color: #c1121f;
+      background: #ffe0e0;
+    }
+
+    .sale-item.a-entregar .cliente { color: #8b0000; }
 
     .sale-item .sale-top {
       display: flex;
@@ -789,7 +796,7 @@
       const produtosTxt = itens.map(it => `📦 ${escapar(it.produto)} - ${formatarValor(it.valor)}`).join('<br>');
       const dataRecebimento = v.dataRecebimento || '';
       html += `
-        <div class="sale-item ${ehMinha ? 'minha' : ''} ${statusEntrega === 'a_entregar' ? 'a-entregar' : ''}">
+        <div class="sale-item ${ehMinha ? 'minha' : ''} ${statusEntrega === 'a_entregar' ? 'a-entregar' : ''} ${statusPagamento === 'a_receber' ? 'a-receber' : ''}">
           <div class="sale-top">
             <div>
               <div class="cliente">${escapar(v.cliente)}</div>
