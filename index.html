@@ -259,6 +259,39 @@
       background: #f5a623;
       color: white;
     }
+
+    .badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 20px;
+      white-space: nowrap;
+      display: inline-block;
+    }
+
+    .badge.entregue { background: #e6f4ea; color: #34a853; }
+    .badge.a_entregar { background: #fce8e6; color: #ea4335; }
+    .badge.pago { background: #e6f4ea; color: #34a853; }
+    .badge.a_receber { background: #fff4e0; color: #c47d00; }
+
+    .falta-texto {
+      font-size: 0.78rem;
+      color: #ea4335;
+      margin-top: 4px;
+      font-weight: 600;
+    }
+
+    .valor-pago-box {
+      display: none;
+    }
+
+    .valor-pago-box.aberto { display: block; }
+
+    .falta-preview {
+      font-size: 0.78rem;
+      color: #888;
+      margin-top: 4px;
+    }
   </style>
 </head>
 <body>
@@ -292,7 +325,7 @@
     <input type="text" id="produto" placeholder="Ex: Pacote Premium, Consultoria..." />
 
     <label>Valor (R$)</label>
-    <input type="number" id="valor" placeholder="0,00" min="0" step="0.01" />
+    <input type="number" id="valor" placeholder="0,00" min="0" step="0.01" oninput="atualizarFalta()" />
 
     <div class="row">
       <div>
@@ -303,6 +336,29 @@
         <label>Hora</label>
         <input type="time" id="hora" />
       </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label>Status de Entrega</label>
+        <select id="statusEntrega">
+          <option value="a_entregar">A Entregar</option>
+          <option value="entregue">Entregue</option>
+        </select>
+      </div>
+      <div>
+        <label>Status de Pagamento</label>
+        <select id="statusPagamento" onchange="toggleValorPago()">
+          <option value="a_receber">A Receber</option>
+          <option value="pago">Pago</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="valor-pago-box aberto" id="valorPagoBox">
+      <label>Valor já pago (R$)</label>
+      <input type="number" id="valorPago" placeholder="0,00" min="0" step="0.01" oninput="atualizarFalta()" />
+      <div class="falta-preview" id="faltaPreview"></div>
     </div>
 
     <label>Observação (opcional)</label>
@@ -371,6 +427,7 @@
       renderVendas();
     });
 
+    toggleValorPago();
     iniciarEscuta();
   };
 
@@ -391,6 +448,24 @@
             '<div class="empty"><span>⚠️</span>Erro ao conectar. Verifique sua internet.</div>';
         }
       );
+  }
+
+  function toggleValorPago() {
+    const status = document.getElementById('statusPagamento').value;
+    const box = document.getElementById('valorPagoBox');
+    box.classList.toggle('aberto', status === 'a_receber');
+    if (status === 'pago') document.getElementById('valorPago').value = '';
+    atualizarFalta();
+  }
+
+  function atualizarFalta() {
+    const status = document.getElementById('statusPagamento').value;
+    const valor = parseFloat(document.getElementById('valor').value) || 0;
+    const valorPago = parseFloat(document.getElementById('valorPago').value) || 0;
+    const preview = document.getElementById('faltaPreview');
+    if (status === 'pago' || valor === 0) { preview.textContent = ''; return; }
+    const falta = Math.max(valor - valorPago, 0);
+    preview.textContent = `Falta pagar: ${formatarValor(falta)}`;
   }
 
   function setFiltro(f) {
@@ -416,6 +491,10 @@
     const data = document.getElementById('data').value;
     const hora = document.getElementById('hora').value;
     const obs = document.getElementById('obs').value.trim();
+    const statusEntrega = document.getElementById('statusEntrega').value;
+    const statusPagamento = document.getElementById('statusPagamento').value;
+    let valorPago = statusPagamento === 'pago' ? valor : (parseFloat(document.getElementById('valorPago').value) || 0);
+    if (valorPago > valor) valorPago = valor;
 
     if (!vendedor) { mostrarAlerta('Informe seu nome antes de registrar.', true); return; }
     if (!cliente) { mostrarAlerta('Informe o nome do cliente.', true); return; }
@@ -430,6 +509,7 @@
     try {
       await db.collection('vendas').add({
         vendedor, cliente, produto, valor, data, hora, obs,
+        statusEntrega, statusPagamento, valorPago,
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
       });
 
@@ -437,6 +517,10 @@
       document.getElementById('produto').value = '';
       document.getElementById('valor').value = '';
       document.getElementById('obs').value = '';
+      document.getElementById('statusEntrega').value = 'a_entregar';
+      document.getElementById('statusPagamento').value = 'a_receber';
+      document.getElementById('valorPago').value = '';
+      toggleValorPago();
       document.getElementById('cliente').focus();
       mostrarAlerta('✔ Venda registrada!');
     } catch (e) {
@@ -488,6 +572,10 @@
     let html = '';
     for (const v of vendas) {
       const ehMinha = v.vendedor && v.vendedor.toLowerCase() === meuNome;
+      const statusEntrega = v.statusEntrega || 'a_entregar';
+      const statusPagamento = v.statusPagamento || 'a_receber';
+      const valorPago = v.valorPago || 0;
+      const falta = Math.max((v.valor || 0) - valorPago, 0);
       html += `
         <div class="sale-item ${ehMinha ? 'minha' : ''}">
           <div class="sale-top">
@@ -497,6 +585,11 @@
               ${v.obs ? `<div class="produto" style="color:#888">💬 ${escapar(v.obs)}</div>` : ''}
               <div class="data">🕐 ${formatarData(v.data)}${v.hora ? ' às ' + v.hora : ''}</div>
               <span class="vendedor-tag">👤 ${escapar(v.vendedor || 'Desconhecido')}</span>
+              <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+                <span class="badge ${statusEntrega}">${statusEntrega === 'entregue' ? '✔ Entregue' : '⏳ A Entregar'}</span>
+                <span class="badge ${statusPagamento}">${statusPagamento === 'pago' ? '💰 Pago' : '⏳ A Receber'}</span>
+              </div>
+              ${statusPagamento === 'a_receber' && falta > 0 ? `<div class="falta-texto">Falta pagar: ${formatarValor(falta)}</div>` : ''}
             </div>
             <div style="display:flex;align-items:center;gap:4px">
               <div class="valor">${formatarValor(v.valor)}</div>
@@ -537,19 +630,28 @@
     doc.setFont('helvetica', 'normal');
     doc.text(`Relatório de Vendas  |  ${hoje}  |  ${vendas.length} venda(s)`, 210 - 14, 18, { align: 'right' });
 
-    const rows = vendas.map((v, i) => [
-      i + 1,
-      v.vendedor || '-',
-      v.cliente,
-      v.produto,
-      formatarValor(v.valor),
-      `${formatarData(v.data)}${v.hora ? ' ' + v.hora : ''}`,
-      v.obs || '-'
-    ]);
+    const rows = vendas.map((v, i) => {
+      const statusEntrega = v.statusEntrega || 'a_entregar';
+      const statusPagamento = v.statusPagamento || 'a_receber';
+      const falta = Math.max((v.valor || 0) - (v.valorPago || 0), 0);
+      const entregaTxt = statusEntrega === 'entregue' ? 'Entregue' : 'A Entregar';
+      const pagamentoTxt = statusPagamento === 'pago' ? 'Pago' : `A Receber${falta > 0 ? ' (falta ' + formatarValor(falta) + ')' : ''}`;
+      return [
+        i + 1,
+        v.vendedor || '-',
+        v.cliente,
+        v.produto,
+        formatarValor(v.valor),
+        entregaTxt,
+        pagamentoTxt,
+        `${formatarData(v.data)}${v.hora ? ' ' + v.hora : ''}`,
+        v.obs || '-'
+      ];
+    });
 
     doc.autoTable({
       startY: 36,
-      head: [['#', 'Vendedor', 'Cliente', 'Produto / Serviço', 'Valor', 'Data / Hora', 'Obs.']],
+      head: [['#', 'Vendedor', 'Cliente', 'Produto / Serviço', 'Valor', 'Entrega', 'Pagamento', 'Data / Hora', 'Obs.']],
       body: rows,
       theme: 'striped',
       headStyles: { fillColor: [245, 166, 35], textColor: 255, fontStyle: 'bold', fontSize: 8 },
