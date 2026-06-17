@@ -207,6 +207,57 @@
     .badge.andamento { background: #fff4e0; color: #f5a623; }
     .badge.parado    { background: #fce8e6; color: #ea4335; }
     .badge.concluido { background: #e6f4ea; color: #34a853; }
+    .badge.pago      { background: #e6f4ea; color: #34a853; }
+    .badge.a_receber { background: #fff4e0; color: #c47d00; }
+
+    .vendedor-tag {
+      font-size: 0.72rem;
+      background: #f0f4f8;
+      color: #666;
+      padding: 2px 8px;
+      border-radius: 20px;
+      display: inline-block;
+      margin-top: 4px;
+    }
+
+    .srv-valor {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #34a853;
+      margin-top: 3px;
+    }
+
+    .falta-texto {
+      font-size: 0.78rem;
+      color: #ea4335;
+      margin-top: 4px;
+      font-weight: 600;
+    }
+
+    .valor-pago-box { display: none; }
+    .valor-pago-box.aberto { display: block; }
+
+    .falta-preview {
+      font-size: 0.78rem;
+      color: #888;
+      margin-top: 4px;
+    }
+
+    textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1.5px solid #dde3ec;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      color: #333;
+      background: #fafbff;
+      outline: none;
+      resize: vertical;
+      min-height: 60px;
+      font-family: inherit;
+    }
+
+    textarea:focus { border-color: #f5a623; background: white; }
 
     .status-select-mini {
       font-size: 0.75rem;
@@ -228,6 +279,18 @@
     }
 
     .delete-btn:hover { color: #ea4335; }
+
+    .edit-btn {
+      background: none;
+      border: none;
+      color: #ccc;
+      font-size: 0.95rem;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0;
+    }
+
+    .edit-btn:hover { color: #f5a623; }
 
     /* Tabela de viagens */
     .viagens-section {
@@ -269,8 +332,9 @@
     tr:last-child td { border-bottom: none; }
 
     td.del-cell {
-      width: 28px;
+      width: 50px;
       text-align: center;
+      white-space: nowrap;
     }
 
     /* Formulário inline de viagem */
@@ -382,6 +446,13 @@
 
 <div class="container">
 
+  <!-- Vendedor -->
+  <div class="card">
+    <h2>👤 Identificação</h2>
+    <label>Seu nome (vendedor)</label>
+    <input type="text" id="vendedorNome" placeholder="Digite seu nome" />
+  </div>
+
   <!-- Novo serviço -->
   <div class="card">
     <h2>➕ Novo Serviço</h2>
@@ -391,6 +462,9 @@
 
     <label>Cliente</label>
     <input type="text" id="cliente" placeholder="Ex: Construtora Silva" />
+
+    <label>Valor do Serviço (R$)</label>
+    <input type="number" id="valor" placeholder="0,00" min="0" step="0.01" oninput="atualizarFalta()" />
 
     <div class="row">
       <div>
@@ -406,6 +480,21 @@
         </select>
       </div>
     </div>
+
+    <label>Status de Pagamento</label>
+    <select id="statusPagamento" onchange="toggleValorPago()">
+      <option value="a_receber">A Receber</option>
+      <option value="pago">Pago</option>
+    </select>
+
+    <div class="valor-pago-box aberto" id="valorPagoBox">
+      <label>Valor já pago (R$)</label>
+      <input type="number" id="valorPago" placeholder="0,00" min="0" step="0.01" oninput="atualizarFalta()" />
+      <div class="falta-preview" id="faltaPreview"></div>
+    </div>
+
+    <label>Observações (opcional)</label>
+    <textarea id="obs" placeholder="Alguma observação sobre o serviço..."></textarea>
 
     <button class="btn btn-primary" onclick="adicionarServico()">✔ Registrar Serviço</button>
   </div>
@@ -461,8 +550,34 @@
 
   window.onload = function () {
     document.getElementById('dataInicio').value = new Date().toISOString().slice(0, 10);
+
+    const nomeGuardado = localStorage.getItem('vendedorNome') || '';
+    document.getElementById('vendedorNome').value = nomeGuardado;
+    document.getElementById('vendedorNome').addEventListener('change', function () {
+      localStorage.setItem('vendedorNome', this.value.trim());
+    });
+
+    toggleValorPago();
     iniciarEscuta();
   };
+
+  function toggleValorPago() {
+    const status = document.getElementById('statusPagamento').value;
+    const box = document.getElementById('valorPagoBox');
+    box.classList.toggle('aberto', status === 'a_receber');
+    if (status === 'pago') document.getElementById('valorPago').value = '';
+    atualizarFalta();
+  }
+
+  function atualizarFalta() {
+    const status = document.getElementById('statusPagamento').value;
+    const valor = parseFloat(document.getElementById('valor').value) || 0;
+    const valorPago = parseFloat(document.getElementById('valorPago').value) || 0;
+    const preview = document.getElementById('faltaPreview');
+    if (status === 'pago' || valor === 0) { preview.textContent = ''; return; }
+    const falta = Math.max(valor - valorPago, 0);
+    preview.textContent = `Falta pagar: ${formatarValor(falta)}`;
+  }
 
   function iniciarEscuta() {
     db.collection('servicos').orderBy('timestamp', 'desc').onSnapshot(
@@ -497,11 +612,18 @@
   }
 
   async function adicionarServico() {
+    const vendedor  = document.getElementById('vendedorNome').value.trim();
     const tipo      = document.getElementById('tipo').value.trim();
     const cliente   = document.getElementById('cliente').value.trim();
+    const valor     = parseFloat(document.getElementById('valor').value) || 0;
     const dataInicio = document.getElementById('dataInicio').value;
     const status    = document.getElementById('status').value;
+    const statusPagamento = document.getElementById('statusPagamento').value;
+    const obs       = document.getElementById('obs').value.trim();
+    let valorPago = statusPagamento === 'pago' ? valor : (parseFloat(document.getElementById('valorPago').value) || 0);
+    if (valorPago > valor) valorPago = valor;
 
+    if (!vendedor) { mostrarAlerta('Informe seu nome antes de registrar.', true); return; }
     if (!tipo)    { mostrarAlerta('Informe o tipo de serviço.', true); return; }
     if (!cliente) { mostrarAlerta('Informe o cliente.', true); return; }
     if (!dataInicio) { mostrarAlerta('Informe a data de início.', true); return; }
@@ -512,13 +634,19 @@
 
     try {
       await db.collection('servicos').add({
-        tipo, cliente, dataInicio, status,
+        vendedor, tipo, cliente, valor, dataInicio, status,
+        statusPagamento, valorPago, obs,
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
       });
 
       document.getElementById('tipo').value    = '';
       document.getElementById('cliente').value = '';
+      document.getElementById('valor').value   = '';
       document.getElementById('status').value  = 'andamento';
+      document.getElementById('statusPagamento').value = 'a_receber';
+      document.getElementById('valorPago').value = '';
+      document.getElementById('obs').value = '';
+      toggleValorPago();
       mostrarAlerta('✔ Serviço registrado!');
     } catch {
       mostrarAlerta('Erro ao salvar. Verifique a conexão.', true);
@@ -579,6 +707,19 @@
     } finally {
       btn.disabled = false;
       btn.textContent = 'Salvar Viagem';
+    }
+  }
+
+  async function editarQuantidadeViagem(id, atual) {
+    const novo = prompt('Nova quantidade de viagens:', atual);
+    if (novo === null) return;
+    const qtd = parseInt(novo);
+    if (!qtd || qtd < 1) { mostrarAlerta('Quantidade inválida.', true); return; }
+    try {
+      await db.collection('viagens').doc(id).update({ quantidade: qtd });
+      mostrarAlerta('✔ Quantidade atualizada!');
+    } catch {
+      mostrarAlerta('Erro ao atualizar.', true);
     }
   }
 
@@ -644,9 +785,10 @@
           linhas += `
             <tr>
               <td>${escapar(v.proprietario)}</td>
-              <td style="text-align:center;font-weight:700;color:#1a73e8">${v.quantidade}</td>
+              <td style="text-align:center;font-weight:700;color:#f5a623">${v.quantidade}</td>
               <td>${formatarData(v.data)}</td>
               <td class="del-cell">
+                <button class="edit-btn" onclick="editarQuantidadeViagem('${v.id}', ${v.quantidade})" title="Editar quantidade">✏️</button>
                 <button class="delete-btn" onclick="deletarViagem('${v.id}')" title="Remover viagem">✕</button>
               </td>
             </tr>`;
@@ -667,6 +809,10 @@
         tabelaViagens = '<div class="no-viagens">Nenhuma viagem registrada</div>';
       }
 
+      const statusPagamento = s.statusPagamento || 'a_receber';
+      const valorPago = s.valorPago || 0;
+      const falta = Math.max((s.valor || 0) - valorPago, 0);
+
       html += `
         <div class="srv-card ${s.status || ''}">
           <div class="srv-header">
@@ -674,6 +820,13 @@
               <div class="srv-tipo">${escapar(s.tipo)}</div>
               <div class="srv-cliente">👤 ${escapar(s.cliente)}</div>
               <div class="srv-data">📅 Início: ${formatarData(s.dataInicio)}</div>
+              ${s.valor ? `<div class="srv-valor">${formatarValor(s.valor)}</div>` : ''}
+              ${s.vendedor ? `<span class="vendedor-tag">🧑‍💼 ${escapar(s.vendedor)}</span>` : ''}
+              ${s.obs ? `<div class="srv-cliente" style="color:#888">💬 ${escapar(s.obs)}</div>` : ''}
+              <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+                <span class="badge ${statusPagamento}">${statusPagamento === 'pago' ? '💰 Pago' : '⏳ A Receber'}</span>
+              </div>
+              ${statusPagamento === 'a_receber' && falta > 0 ? `<div class="falta-texto">Falta pagar: ${formatarValor(falta)}</div>` : ''}
             </div>
             <div class="srv-right">
               <span class="badge ${s.status || ''}">${statusLabel[s.status] || s.status}</span>
@@ -721,6 +874,10 @@
     }
 
     lista.innerHTML = html;
+  }
+
+  function formatarValor(v) {
+    return (v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   }
 
   function formatarData(d) {
