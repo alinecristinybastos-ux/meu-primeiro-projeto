@@ -155,6 +155,13 @@
 
     .sale-item.minha { border-left-color: #34a853; }
 
+    .sale-item.a-entregar {
+      border-left-color: #ea4335;
+      background: #fff5f5;
+    }
+
+    .sale-item.a-entregar .cliente { color: #c0392b; }
+
     .sale-item .sale-top {
       display: flex;
       justify-content: space-between;
@@ -273,6 +280,58 @@
     .badge.a_entregar { background: #fce8e6; color: #ea4335; }
     .badge.pago { background: #e6f4ea; color: #34a853; }
     .badge.a_receber { background: #fff4e0; color: #c47d00; }
+    .badge.lancado { background: #e6f4ea; color: #34a853; cursor: pointer; border: none; }
+    .badge.nao-lancado { background: #f0f4f8; color: #888; cursor: pointer; border: none; }
+
+    .btn-add-item {
+      background: #fff4e0;
+      color: #c47d00;
+      border: 1.5px dashed #f5a623;
+      border-radius: 8px;
+      padding: 10px;
+      width: 100%;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+
+    .btn-add-item:hover { opacity: 0.85; }
+
+    .itens-box { margin-top: 12px; }
+
+    .item-linha {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #fafbff;
+      border: 1px solid #dde3ec;
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin-bottom: 6px;
+    }
+
+    .item-nome { font-size: 0.85rem; color: #333; flex: 1; }
+    .item-valor { font-size: 0.85rem; font-weight: 700; color: #34a853; margin-right: 8px; }
+
+    .item-remove {
+      background: none;
+      border: none;
+      color: #ccc;
+      font-size: 1rem;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .item-remove:hover { color: #ea4335; }
+
+    .itens-total {
+      text-align: right;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #333;
+      margin-top: 4px;
+    }
 
     .falta-texto {
       font-size: 0.78rem;
@@ -322,10 +381,14 @@
     <input type="text" id="cliente" placeholder="Ex: João da Silva" />
 
     <label>Produto / Serviço</label>
-    <input type="text" id="produto" placeholder="Ex: Pacote Premium, Consultoria..." />
+    <input type="text" id="produtoItem" placeholder="Ex: Pacote Premium, Consultoria..." />
 
     <label>Valor (R$)</label>
-    <input type="number" id="valor" placeholder="0,00" min="0" step="0.01" oninput="atualizarFalta()" />
+    <input type="number" id="valorItem" placeholder="0,00" min="0" step="0.01" />
+
+    <button type="button" class="btn-add-item" onclick="adicionarItemVenda()">+ Adicionar Item</button>
+
+    <div class="itens-box" id="itensBox"></div>
 
     <div class="row">
       <div>
@@ -370,12 +433,12 @@
   <!-- Resumo -->
   <div class="summary" id="summaryArea" style="display:none">
     <div class="summary-box">
-      <div class="value" id="totalVendas">0</div>
-      <div class="label-sm">Total de vendas</div>
+      <div class="value" id="totalRecebido">R$ 0</div>
+      <div class="label-sm">Valor Total Recebido</div>
     </div>
     <div class="summary-box">
-      <div class="value" id="totalValor">R$ 0</div>
-      <div class="label-sm">Valor total</div>
+      <div class="value" id="totalAReceber">R$ 0</div>
+      <div class="label-sm">Valor Total a Receber</div>
     </div>
   </div>
 
@@ -393,7 +456,9 @@
 
   <!-- Botões de ação -->
   <div id="botoesRelatorio" style="display:none">
-    <button class="btn btn-success" onclick="gerarPDF()">📄 Gerar Relatório PDF</button>
+    <button class="btn btn-success" onclick="gerarPDF('geral')">📄 Relatório Geral</button>
+    <button class="btn btn-success" onclick="gerarPDF('a_receber')">📄 Relatório A Receber</button>
+    <button class="btn btn-success" onclick="gerarPDF('a_entregar')">📄 Relatório A Entregar</button>
   </div>
 
 </div>
@@ -414,6 +479,7 @@
 
   let todasVendas = [];
   let filtroAtual = 'todos';
+  let itensTemp = [];
 
   window.onload = function () {
     const agora = new Date();
@@ -427,6 +493,7 @@
       renderVendas();
     });
 
+    renderItensTemp();
     toggleValorPago();
     iniciarEscuta();
   };
@@ -460,12 +527,52 @@
 
   function atualizarFalta() {
     const status = document.getElementById('statusPagamento').value;
-    const valor = parseFloat(document.getElementById('valor').value) || 0;
+    const valor = totalItensTemp();
     const valorPago = parseFloat(document.getElementById('valorPago').value) || 0;
     const preview = document.getElementById('faltaPreview');
     if (status === 'pago' || valor === 0) { preview.textContent = ''; return; }
     const falta = Math.max(valor - valorPago, 0);
     preview.textContent = `Falta pagar: ${formatarValor(falta)}`;
+  }
+
+  function adicionarItemVenda() {
+    const produtoEl = document.getElementById('produtoItem');
+    const valorEl = document.getElementById('valorItem');
+    const produto = produtoEl.value.trim();
+    const valor = parseFloat(valorEl.value);
+    if (!produto) { mostrarAlerta('Informe o produto/serviço do item.', true); return; }
+    if (!valor || valor <= 0) { mostrarAlerta('Informe um valor válido para o item.', true); return; }
+    itensTemp.push({ produto, valor });
+    produtoEl.value = '';
+    valorEl.value = '';
+    produtoEl.focus();
+    renderItensTemp();
+  }
+
+  function removerItemVenda(idx) {
+    itensTemp.splice(idx, 1);
+    renderItensTemp();
+  }
+
+  function totalItensTemp() {
+    return itensTemp.reduce((s, it) => s + it.valor, 0);
+  }
+
+  function renderItensTemp() {
+    const box = document.getElementById('itensBox');
+    if (itensTemp.length === 0) {
+      box.innerHTML = '';
+    } else {
+      let html = itensTemp.map((it, idx) => `
+        <div class="item-linha">
+          <div class="item-nome">${escapar(it.produto)}</div>
+          <div class="item-valor">${formatarValor(it.valor)}</div>
+          <button type="button" class="item-remove" onclick="removerItemVenda(${idx})" title="Remover">✕</button>
+        </div>`).join('');
+      html += `<div class="itens-total">Total: ${formatarValor(totalItensTemp())}</div>`;
+      box.innerHTML = html;
+    }
+    atualizarFalta();
   }
 
   function setFiltro(f) {
@@ -486,8 +593,7 @@
   async function adicionarVenda() {
     const vendedor = document.getElementById('vendedorNome').value.trim();
     const cliente = document.getElementById('cliente').value.trim();
-    const produto = document.getElementById('produto').value.trim();
-    const valor = parseFloat(document.getElementById('valor').value);
+    const valor = totalItensTemp();
     const data = document.getElementById('data').value;
     const hora = document.getElementById('hora').value;
     const obs = document.getElementById('obs').value.trim();
@@ -498,8 +604,7 @@
 
     if (!vendedor) { mostrarAlerta('Informe seu nome antes de registrar.', true); return; }
     if (!cliente) { mostrarAlerta('Informe o nome do cliente.', true); return; }
-    if (!produto) { mostrarAlerta('Informe o produto ou serviço.', true); return; }
-    if (!valor || valor <= 0) { mostrarAlerta('Informe um valor válido.', true); return; }
+    if (itensTemp.length === 0) { mostrarAlerta('Adicione ao menos um produto/serviço.', true); return; }
     if (!data) { mostrarAlerta('Informe a data.', true); return; }
 
     const btn = document.querySelector('.btn-primary');
@@ -508,18 +613,18 @@
 
     try {
       await db.collection('vendas').add({
-        vendedor, cliente, produto, valor, data, hora, obs,
-        statusEntrega, statusPagamento, valorPago,
+        vendedor, cliente, itens: itensTemp.slice(), valor, data, hora, obs,
+        statusEntrega, statusPagamento, valorPago, lancado: false,
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
       });
 
       document.getElementById('cliente').value = '';
-      document.getElementById('produto').value = '';
-      document.getElementById('valor').value = '';
       document.getElementById('obs').value = '';
       document.getElementById('statusEntrega').value = 'a_entregar';
       document.getElementById('statusPagamento').value = 'a_receber';
       document.getElementById('valorPago').value = '';
+      itensTemp = [];
+      renderItensTemp();
       toggleValorPago();
       document.getElementById('cliente').focus();
       mostrarAlerta('✔ Venda registrada!');
@@ -529,6 +634,18 @@
       btn.disabled = false;
       btn.textContent = '✔ Registrar Venda';
     }
+  }
+
+  async function toggleLancado(id, novoValor) {
+    try {
+      await db.collection('vendas').doc(id).update({ lancado: novoValor });
+    } catch (e) {
+      mostrarAlerta('Erro ao atualizar.', true);
+    }
+  }
+
+  function valorPagoEfetivo(v) {
+    return v.statusPagamento === 'pago' ? (v.valor || 0) : (v.valorPago || 0);
   }
 
   async function deletarVenda(id) {
@@ -560,9 +677,10 @@
     summary.style.display = 'flex';
     botoes.style.display = 'block';
 
-    const total = vendas.reduce((s, v) => s + (v.valor || 0), 0);
-    document.getElementById('totalVendas').textContent = vendas.length;
-    document.getElementById('totalValor').textContent = formatarValor(total);
+    const totalRecebido = vendas.reduce((s, v) => s + valorPagoEfetivo(v), 0);
+    const totalAReceber = vendas.reduce((s, v) => s + Math.max((v.valor || 0) - valorPagoEfetivo(v), 0), 0);
+    document.getElementById('totalRecebido').textContent = formatarValor(totalRecebido);
+    document.getElementById('totalAReceber').textContent = formatarValor(totalAReceber);
 
     if (vendas.length === 0) {
       lista.innerHTML = '<div class="empty"><span>🔍</span>Nenhuma venda neste filtro.</div>';
@@ -574,20 +692,24 @@
       const ehMinha = v.vendedor && v.vendedor.toLowerCase() === meuNome;
       const statusEntrega = v.statusEntrega || 'a_entregar';
       const statusPagamento = v.statusPagamento || 'a_receber';
-      const valorPago = v.valorPago || 0;
+      const valorPago = valorPagoEfetivo(v);
       const falta = Math.max((v.valor || 0) - valorPago, 0);
+      const lancado = !!v.lancado;
+      const itens = v.itens && v.itens.length ? v.itens : [{ produto: v.produto, valor: v.valor }];
+      const produtosTxt = itens.map(it => `📦 ${escapar(it.produto)} - ${formatarValor(it.valor)}`).join('<br>');
       html += `
-        <div class="sale-item ${ehMinha ? 'minha' : ''}">
+        <div class="sale-item ${ehMinha ? 'minha' : ''} ${statusEntrega === 'a_entregar' ? 'a-entregar' : ''}">
           <div class="sale-top">
             <div>
               <div class="cliente">${escapar(v.cliente)}</div>
-              <div class="produto">📦 ${escapar(v.produto)}</div>
+              <div class="produto">${produtosTxt}</div>
               ${v.obs ? `<div class="produto" style="color:#888">💬 ${escapar(v.obs)}</div>` : ''}
               <div class="data">🕐 ${formatarData(v.data)}${v.hora ? ' às ' + v.hora : ''}</div>
               <span class="vendedor-tag">👤 ${escapar(v.vendedor || 'Desconhecido')}</span>
               <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
                 <span class="badge ${statusEntrega}">${statusEntrega === 'entregue' ? '✔ Entregue' : '⏳ A Entregar'}</span>
                 <span class="badge ${statusPagamento}">${statusPagamento === 'pago' ? '💰 Pago' : '⏳ A Receber'}</span>
+                <span class="badge ${lancado ? 'lancado' : 'nao-lancado'}" onclick="toggleLancado('${v.id}', ${!lancado})">${lancado ? '✔ Lançado no Sistema' : '○ Não Lançado'}</span>
               </div>
               ${statusPagamento === 'a_receber' && falta > 0 ? `<div class="falta-texto">Falta pagar: ${formatarValor(falta)}</div>` : ''}
             </div>
@@ -602,11 +724,17 @@
     lista.innerHTML = html;
   }
 
-  function gerarPDF() {
+  function gerarPDF(tipo) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const hoje = new Date().toLocaleDateString('pt-BR');
-    const vendas = vendasFiltradas();
+
+    let vendas = vendasFiltradas();
+    if (tipo === 'a_receber') vendas = vendas.filter(v => (v.statusPagamento || 'a_receber') === 'a_receber');
+    if (tipo === 'a_entregar') vendas = vendas.filter(v => (v.statusEntrega || 'a_entregar') === 'a_entregar');
+
+    const titulos = { geral: 'Relatório Geral de Vendas', a_receber: 'Relatório de Vendas A Receber', a_entregar: 'Relatório de Vendas A Entregar' };
+    const titulo = titulos[tipo] || 'Relatório de Vendas';
 
     // Cabeçalho branco com borda amarela
     doc.setFillColor(255, 255, 255);
@@ -628,46 +756,52 @@
     doc.setTextColor(100, 100, 100);
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Relatório de Vendas  |  ${hoje}  |  ${vendas.length} venda(s)`, 210 - 14, 18, { align: 'right' });
+    doc.text(`${titulo}  |  ${hoje}  |  ${vendas.length} venda(s)`, 210 - 14, 18, { align: 'right' });
 
     const rows = vendas.map((v, i) => {
       const statusEntrega = v.statusEntrega || 'a_entregar';
       const statusPagamento = v.statusPagamento || 'a_receber';
-      const falta = Math.max((v.valor || 0) - (v.valorPago || 0), 0);
+      const recebido = valorPagoEfetivo(v);
+      const aReceber = Math.max((v.valor || 0) - recebido, 0);
       const entregaTxt = statusEntrega === 'entregue' ? 'Entregue' : 'A Entregar';
-      const pagamentoTxt = statusPagamento === 'pago' ? 'Pago' : `A Receber${falta > 0 ? ' (falta ' + formatarValor(falta) + ')' : ''}`;
+      const lancadoTxt = v.lancado ? 'Sim' : 'Não';
+      const itens = v.itens && v.itens.length ? v.itens : [{ produto: v.produto, valor: v.valor }];
+      const produtosTxt = itens.map(it => `${it.produto} (${formatarValor(it.valor)})`).join('\n');
       return [
         i + 1,
         v.vendedor || '-',
         v.cliente,
-        v.produto,
+        produtosTxt,
         formatarValor(v.valor),
+        formatarValor(recebido),
+        formatarValor(aReceber),
         entregaTxt,
-        pagamentoTxt,
-        `${formatarData(v.data)}${v.hora ? ' ' + v.hora : ''}`,
-        v.obs || '-'
+        lancadoTxt,
+        `${formatarData(v.data)}${v.hora ? ' ' + v.hora : ''}`
       ];
     });
 
     doc.autoTable({
       startY: 36,
-      head: [['#', 'Vendedor', 'Cliente', 'Produto / Serviço', 'Valor', 'Entrega', 'Pagamento', 'Data / Hora', 'Obs.']],
+      head: [['#', 'Vendedor', 'Cliente', 'Produtos', 'Valor Total', 'Recebido', 'A Receber', 'Entrega', 'Lançado', 'Data/Hora']],
       body: rows,
       theme: 'striped',
       headStyles: { fillColor: [245, 166, 35], textColor: 255, fontStyle: 'bold', fontSize: 8 },
       bodyStyles: { fontSize: 7.5 },
-      columnStyles: { 0: { cellWidth: 7 }, 4: { halign: 'right' } },
+      columnStyles: { 0: { cellWidth: 7 }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' } },
       margin: { left: 14, right: 14 }
     });
 
     const finalY = doc.lastAutoTable.finalY + 8;
     const total = vendas.reduce((s, v) => s + (v.valor || 0), 0);
-    doc.setFontSize(11);
+    const totalRecebido = vendas.reduce((s, v) => s + valorPagoEfetivo(v), 0);
+    const totalAReceber = vendas.reduce((s, v) => s + Math.max((v.valor || 0) - valorPagoEfetivo(v), 0), 0);
+    doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(52, 168, 83);
-    doc.text(`Total: ${formatarValor(total)}`, 14, finalY);
+    doc.text(`Total: ${formatarValor(total)}   |   Recebido: ${formatarValor(totalRecebido)}   |   A Receber: ${formatarValor(totalAReceber)}`, 14, finalY);
 
-    doc.save(`relatorio_vendas_${hoje.replace(/\//g, '-')}.pdf`);
+    doc.save(`relatorio_vendas_${tipo}_${hoje.replace(/\//g, '-')}.pdf`);
   }
 
   function formatarValor(v) {
