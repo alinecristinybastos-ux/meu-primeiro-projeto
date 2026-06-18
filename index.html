@@ -836,8 +836,10 @@
 
   function gerarPDF(tipo) {
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     const hoje = new Date().toLocaleDateString('pt-BR');
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
 
     let vendas = vendasFiltradas();
     if (tipo === 'a_receber') vendas = vendas.filter(v => (v.statusPagamento || 'a_receber') === 'a_receber');
@@ -845,12 +847,13 @@
 
     const titulos = { geral: 'Relatório Geral de Vendas', a_receber: 'Relatório de Vendas A Receber', a_entregar: 'Relatório de Vendas A Entregar' };
     const titulo = titulos[tipo] || 'Relatório de Vendas';
+    const nomesMeses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
     // Cabeçalho branco com borda amarela
     doc.setFillColor(255, 255, 255);
-    doc.rect(0, 0, 210, 32, 'F');
+    doc.rect(0, 0, pageWidth, 32, 'F');
     doc.setFillColor(245, 166, 35);
-    doc.rect(0, 29, 210, 3, 'F');
+    doc.rect(0, 29, pageWidth, 3, 'F');
 
     // Logo
     try {
@@ -864,13 +867,12 @@
     } catch(e) {}
 
     doc.setTextColor(100, 100, 100);
-    doc.setFontSize(9);
+    doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
-    doc.text(`${titulo}  |  ${hoje}  |  ${vendas.length} venda(s)`, 210 - 14, 18, { align: 'right' });
+    doc.text(`${titulo}  |  ${hoje}  |  ${vendas.length} venda(s)`, pageWidth - 14, 18, { align: 'right' });
 
-    const rows = vendas.map((v, i) => {
+    const linhasDe = (lista) => lista.map((v, i) => {
       const statusEntrega = v.statusEntrega || 'a_entregar';
-      const statusPagamento = v.statusPagamento || 'a_receber';
       const recebido = valorPagoEfetivo(v);
       const aReceber = Math.max((v.valor || 0) - recebido, 0);
       const entregaTxt = statusEntrega === 'entregue' ? 'Entregue' : 'A Entregar';
@@ -891,25 +893,83 @@
       ];
     });
 
-    doc.autoTable({
-      startY: 36,
-      head: [['#', 'Vendedor', 'Cliente', 'Produtos', 'Valor Total', 'Recebido', 'A Receber', 'Entrega', 'Lançado', 'Data/Hora']],
-      body: rows,
-      theme: 'striped',
-      headStyles: { fillColor: [245, 166, 35], textColor: 255, fontStyle: 'bold', fontSize: 8 },
-      bodyStyles: { fontSize: 7.5 },
-      columnStyles: { 0: { cellWidth: 7 }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' } },
-      margin: { left: 14, right: 14 }
-    });
+    const head = [['#', 'Vendedor', 'Cliente', 'Produtos', 'Valor Total', 'Recebido', 'A Receber', 'Entrega', 'Lançado', 'Data/Hora']];
+    const headStyles = { fillColor: [245, 166, 35], textColor: 255, fontStyle: 'bold', fontSize: 10 };
+    const bodyStyles = { fontSize: 9 };
+    const columnStyles = { 0: { cellWidth: 8 }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' } };
+    const margin = { left: 14, right: 14 };
 
-    const finalY = doc.lastAutoTable.finalY + 8;
-    const total = vendas.reduce((s, v) => s + (v.valor || 0), 0);
-    const totalRecebido = vendas.reduce((s, v) => s + valorPagoEfetivo(v), 0);
-    const totalAReceber = vendas.reduce((s, v) => s + Math.max((v.valor || 0) - valorPagoEfetivo(v), 0), 0);
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(52, 168, 83);
-    doc.text(`Total: ${formatarValor(total)}   |   Recebido: ${formatarValor(totalRecebido)}   |   A Receber: ${formatarValor(totalAReceber)}`, 14, finalY);
+    if (tipo === 'geral') {
+      const grupos = {};
+      for (const v of vendas) {
+        const chave = (v.data || '').slice(0, 7) || 'sem-data';
+        if (!grupos[chave]) grupos[chave] = [];
+        grupos[chave].push(v);
+      }
+      const chaves = Object.keys(grupos).sort();
+
+      let y = 36;
+      for (const chave of chaves) {
+        const grupo = grupos[chave];
+        let tituloMes = 'Sem data';
+        if (chave !== 'sem-data') {
+          const [ano, mesNum] = chave.split('-');
+          tituloMes = `${nomesMeses[parseInt(mesNum, 10) - 1]} de ${ano}`;
+        }
+
+        if (y > pageHeight - 40) { doc.addPage(); y = 16; }
+
+        doc.setFontSize(13);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(245, 166, 35);
+        doc.text(tituloMes, margin.left, y);
+        y += 5;
+
+        doc.autoTable({
+          startY: y,
+          head,
+          body: linhasDe(grupo),
+          theme: 'striped',
+          headStyles, bodyStyles, columnStyles, margin
+        });
+        y = doc.lastAutoTable.finalY + 7;
+
+        const totalMes = grupo.reduce((s, v) => s + (v.valor || 0), 0);
+        const recebidoMes = grupo.reduce((s, v) => s + valorPagoEfetivo(v), 0);
+        const aReceberMes = grupo.reduce((s, v) => s + Math.max((v.valor || 0) - valorPagoEfetivo(v), 0), 0);
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(52, 168, 83);
+        doc.text(`Subtotal ${tituloMes}: ${formatarValor(totalMes)}   |   Recebido: ${formatarValor(recebidoMes)}   |   A Receber: ${formatarValor(aReceberMes)}`, margin.left, y);
+        y += 12;
+      }
+
+      if (y > pageHeight - 20) { doc.addPage(); y = 16; }
+      const total = vendas.reduce((s, v) => s + (v.valor || 0), 0);
+      const totalRecebido = vendas.reduce((s, v) => s + valorPagoEfetivo(v), 0);
+      const totalAReceber = vendas.reduce((s, v) => s + Math.max((v.valor || 0) - valorPagoEfetivo(v), 0), 0);
+      doc.setFontSize(13);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+      doc.text(`TOTAL GERAL: ${formatarValor(total)}   |   Recebido: ${formatarValor(totalRecebido)}   |   A Receber: ${formatarValor(totalAReceber)}`, margin.left, y);
+    } else {
+      doc.autoTable({
+        startY: 36,
+        head,
+        body: linhasDe(vendas),
+        theme: 'striped',
+        headStyles, bodyStyles, columnStyles, margin
+      });
+
+      const finalY = doc.lastAutoTable.finalY + 8;
+      const total = vendas.reduce((s, v) => s + (v.valor || 0), 0);
+      const totalRecebido = vendas.reduce((s, v) => s + valorPagoEfetivo(v), 0);
+      const totalAReceber = vendas.reduce((s, v) => s + Math.max((v.valor || 0) - valorPagoEfetivo(v), 0), 0);
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(52, 168, 83);
+      doc.text(`Total: ${formatarValor(total)}   |   Recebido: ${formatarValor(totalRecebido)}   |   A Receber: ${formatarValor(totalAReceber)}`, margin.left, finalY);
+    }
 
     doc.save(`relatorio_vendas_${tipo}_${hoje.replace(/\//g, '-')}.pdf`);
   }
