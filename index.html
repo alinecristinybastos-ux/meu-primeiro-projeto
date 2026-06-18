@@ -508,6 +508,8 @@
     <button class="filtro-btn" id="btnHoje" onclick="setFiltro('hoje')">Hoje</button>
   </div>
 
+  <input type="text" id="filtroCliente" placeholder="🔍 Buscar por nome do cliente..." style="display:none;margin-bottom:12px" oninput="renderVendas()" />
+
   <!-- Lista de vendas -->
   <div id="listaVendas">
     <div class="loading">Conectando ao banco de dados...</div>
@@ -644,9 +646,14 @@
   function vendasFiltradas() {
     const meuNome = document.getElementById('vendedorNome').value.trim().toLowerCase();
     const hoje = new Date().toISOString().slice(0, 10);
-    if (filtroAtual === 'minhas') return todasVendas.filter(v => v.vendedor && v.vendedor.toLowerCase() === meuNome);
-    if (filtroAtual === 'hoje') return todasVendas.filter(v => v.data === hoje);
-    return todasVendas;
+    let lista = todasVendas;
+    if (filtroAtual === 'minhas') lista = lista.filter(v => v.vendedor && v.vendedor.toLowerCase() === meuNome);
+    if (filtroAtual === 'hoje') lista = lista.filter(v => v.data === hoje);
+
+    const buscaCliente = (document.getElementById('filtroCliente').value || '').trim().toLowerCase();
+    if (buscaCliente) lista = lista.filter(v => v.cliente && v.cliente.toLowerCase().includes(buscaCliente));
+
+    return lista;
   }
 
   async function adicionarVenda() {
@@ -759,6 +766,7 @@
     const summary = document.getElementById('summaryArea');
     const botoes = document.getElementById('botoesRelatorio');
     const filtroRow = document.getElementById('filtroRow');
+    const filtroCliente = document.getElementById('filtroCliente');
     const meuNome = document.getElementById('vendedorNome').value.trim().toLowerCase();
     const vendas = vendasFiltradas();
 
@@ -767,10 +775,12 @@
       summary.style.display = 'none';
       botoes.style.display = 'none';
       filtroRow.style.display = 'none';
+      filtroCliente.style.display = 'none';
       return;
     }
 
     filtroRow.style.display = 'flex';
+    filtroCliente.style.display = 'block';
     summary.style.display = 'flex';
     botoes.style.display = 'block';
 
