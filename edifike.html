@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EDIFIKE - Controle de Vendas</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #f0f4f8;
+      color: #333;
+      min-height: 100vh;
+    }
+
+    header {
+      background: white;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+      border-bottom: 3px solid #f5a623;
+    }
+
+    header img { height: 44px; flex: 1; object-fit: contain; object-position: left; }
+    header .app-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #888;
+      white-space: nowrap;
+      text-align: right;
+    }
+    header .status-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: #ff9800;
+      flex-shrink: 0;
+    }
+    header .status-dot.online { background: #4caf50; }
+
+    .container { padding: 16px; max-width: 600px; margin: 0 auto; }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .card h2 {
+      font-size: 1rem;
+      color: #f5a623;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #555;
+      margin-bottom: 4px;
+      margin-top: 12px;
+    }
+
+    label:first-of-type { margin-top: 0; }
+
+    input, textarea, select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1.5px solid #dde3ec;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      color: #333;
+      background: #fafbff;
+      transition: border 0.2s;
+      outline: none;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      border-color: #f5a623;
+      background: white;
+    }
+
+    textarea { resize: vertical; min-height: 60px; }
+
+    .row { display: flex; gap: 10px; }
+    .row > div { flex: 1; }
+
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 13px;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      margin-top: 16px;
+    }
+
+    .btn:active { transform: scale(0.98); }
+    .btn-primary { background: #f5a623; color: white; }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-success { background: #34a853; color: white; }
+    .btn-success:hover { opacity: 0.9; }
+    .btn-danger { background: #ea4335; color: white; margin-top: 8px; }
+    .btn-danger:hover { opacity: 0.9; }
+
+    .summary {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .summary-box {
+      flex: 1;
+      background: white;
+      border-radius: 10px;
+      padding: 14px 10px;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .summary-box .value {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #f5a623;
+    }
+
+    .summary-box .label-sm {
+      font-size: 0.72rem;
+      color: #888;
+      margin-top: 2px;
+    }
+
+    .sale-item {
+      background: white;
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      box-shadow: 0 1px 5px rgba(0,0,0,0.07);
+      border-left: 4px solid #f5a623;
+    }
+
+    .sale-item.minha { border-left-color: #34a853; }
+
+    .sale-item.a-receber {
+      border-right: 4px solid #c1121f;
+      background: #ffe0e0;
+    }
+
+    .sale-item.a-receber .cliente { color: #8b0000; }
+
+    .sale-item.a-entregar {
+      border-left-color: #0d47a1;
+      background: #e3f0ff;
+    }
+
+    .sale-item.a-entregar .cliente { color: #0d47a1; }
+
+    .sale-item .sale-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .sale-item .cliente { font-weight: 600; font-size: 0.95rem; }
+    .sale-item .valor {
+      font-weight: 700;
+      color: #34a853;
+      font-size: 1rem;
+      white-space: nowrap;
+    }
+
+    .sale-item .produto { font-size: 0.82rem; color: #555; margin-top: 2px; }
+    .sale-item .data { font-size: 0.75rem; color: #aaa; margin-top: 4px; }
+    .sale-item .vendedor-tag {
+      font-size: 0.72rem;
+      background: #fff4e0;
+      color: #c47d00;
+      padding: 2px 7px;
+      border-radius: 20px;
+      display: inline-block;
+      margin-top: 4px;
+    }
+    .sale-item.minha .vendedor-tag {
+      background: #e6f4ea;
+      color: #34a853;
+    }
+
+    .delete-btn {
+      background: none;
+      border: none;
+      color: #ccc;
+      font-size: 1.1rem;
+      cursor: pointer;
+      padding: 0 0 0 8px;
+      line-height: 1;
+    }
+
+    .delete-btn:hover { color: #ea4335; }
+
+    .empty {
+      text-align: center;
+      color: #bbb;
+      padding: 30px 0;
+      font-size: 0.9rem;
+    }
+
+    .empty span { display: block; font-size: 2rem; margin-bottom: 8px; }
+
+    .alert {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #34a853;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      z-index: 999;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    .alert.show { opacity: 1; }
+    .alert.erro { background: #ea4335; }
+
+    .loading {
+      text-align: center;
+      color: #aaa;
+      padding: 20px 0;
+      font-size: 0.85rem;
+    }
+
+    .filtro-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .filtro-btn {
+      flex: 1;
+      padding: 8px;
+      border: 1.5px solid #dde3ec;
+      border-radius: 8px;
+      background: white;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: #888;
+      transition: all 0.2s;
+    }
+
+    .filtro-btn.ativo {
+      border-color: #f5a623;
+      background: #f5a623;
+      color: white;
+    }
+
+    .badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 20px;
+      white-space: nowrap;
+      display: inline-block;
+    }
+
+    .badge.entregue { background: #e6f4ea; color: #34a853; }
+    .badge.a_entregar { background: #fce8e6; color: #ea4335; }
+    .badge.pago { background: #e6f4ea; color: #34a853; }
+    .badge.a_receber { background: #fff4e0; color: #c47d00; }
+    .badge.lancado { background: #e6f4ea; color: #34a853; cursor: pointer; border: none; }
+    .badge.nao-lancado { background: #f0f4f8; color: #888; cursor: pointer; border: none; }
+
+    .btn-add-item {
+      background: #fff4e0;
+      color: #c47d00;
+      border: 1.5px dashed #f5a623;
+      border-radius: 8px;
+      padding: 10px;
+      width: 100%;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+
+    .btn-add-item:hover { opacity: 0.85; }
+
+    .itens-box { margin-top: 12px; }
+
+    .item-linha {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #fafbff;
+      border: 1px solid #dde3ec;
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin-bottom: 6px;
+    }
+
+    .item-nome { font-size: 0.85rem; color: #333; flex: 1; }
+    .item-valor { font-size: 0.85rem; font-weight: 700; color: #34a853; margin-right: 8px; }
+
+    .item-remove {
+      background: none;
+      border: none;
+      color: #ccc;
+      font-size: 1rem;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .item-remove:hover { color: #ea4335; }
+
+    .itens-total {
+      text-align: right;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #333;
+      margin-top: 4px;
+    }
+
+    .falta-texto {
+      font-size: 0.78rem;
+      color: #ea4335;
+      margin-top: 4px;
+      font-weight: 600;
+    }
+
+    .valor-pago-box {
+      display: none;
+    }
+
+    .valor-pago-box.aberto { display: block; }
+
+    .falta-preview {
+      font-size: 0.78rem;
+      color: #888;
+      margin-top: 4px;
+    }
+
+    .edit-status-row {
+      display: flex;
+      gap: 6px;
+      margin-top: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .select-sm {
+      width: auto;
+      padding: 4px 8px;
+      font-size: 0.72rem;
+      border-radius: 20px;
+      border: 1.5px solid #dde3ec;
+    }
+
+    .pagamento-edit-box {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .input-sm {
+      width: auto;
+      flex: 1;
+      min-width: 110px;
+      padding: 6px 8px;
+      font-size: 0.78rem;
+    }
+
+    .btn-salvar-pag {
+      background: #f5a623;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .btn-salvar-pag:hover { opacity: 0.9; }
+
+    .data-receb-texto {
+      font-size: 0.75rem;
+      color: #888;
+      margin-top: 4px;
+    }
+
+    .notificacoes-box {
+      background: #fff8e1;
+      border: 1.5px solid #f5a623;
+      border-radius: 10px;
+      padding: 10px 14px;
+      margin-bottom: 14px;
+    }
+
+    .notificacoes-titulo {
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: #8a5d00;
+      margin-bottom: 6px;
+    }
+
+    .notificacao-item {
+      font-size: 0.8rem;
+      color: #555;
+      padding: 4px 0;
+      border-top: 1px solid #f0dca3;
+    }
+
+    .notificacao-item:first-of-type { border-top: none; }
+
+    .notificacao-item b { color: #333; }
+
+    .notificacao-tempo {
+      color: #999;
+      font-size: 0.72rem;
+    }
+
+    .edit-venda-btn {
+      background: none;
+      border: none;
+      color: #ccc;
+      font-size: 1.1rem;
+      cursor: pointer;
+      padding: 0 0 0 8px;
+      line-height: 1;
+    }
+
+    .edit-venda-btn:hover { color: #4a90d9; }
+
+    .edicao-venda-box {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1.5px dashed #dde3ec;
+    }
+
+    .edicao-venda-box label {
+      margin-top: 8px;
+    }
+
+    .edicao-venda-box label:first-of-type { margin-top: 0; }
+
+    .edicao-itens-add {
+      display: flex;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .btn-salvar-edicao {
+      background: #34a853;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 10px;
+      margin-right: 6px;
+    }
+
+    .btn-cancelar-edicao {
+      background: #f0f4f8;
+      color: #888;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div style="font-size:1.3rem;font-weight:800;color:#f5a623;flex:1;">🏢 EDIFIKE</div>
+  <div class="app-title">Controle de<br>Vendas</div>
+  <div class="status-dot" id="statusDot" title="Conectando..." style="margin-left:8px"></div>
+</header>
+
+<div id="alert" class="alert"></div>
+
+<div class="container">
+
+  <!-- Vendedor -->
+  <div class="card">
+    <h2>👤 Identificação</h2>
+    <label>Seu nome (vendedor)</label>
+    <input type="text" id="vendedorNome" placeholder="Digite seu nome" />
+  </div>
+
+  <!-- Formulário de venda -->
+  <div class="card">
+    <h2>➕ Nova Venda</h2>
+
+    <label>Nome do cliente</label>
+    <input type="text" id="cliente" placeholder="Ex: João da Silva" />
+
+    <label>Produto / Serviço</label>
+    <input type="text" id="produtoItem" placeholder="Ex: Pacote Premium, Consultoria..." />
+
+    <label>Valor (R$)</label>
+    <input type="number" id="valorItem" placeholder="0,00" min="0" step="0.01" />
+
+    <button type="button" class="btn-add-item" onclick="adicionarItemVenda()">+ Adicionar Item</button>
+
+    <div class="itens-box" id="itensBox"></div>
+
+    <div class="row">
+      <div>
+        <label>Data</label>
+        <input type="date" id="data" />
+      </div>
+      <div>
+        <label>Hora</label>
+        <input type="time" id="hora" />
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label>Status de Entrega</label>
+        <select id="statusEntrega">
+          <option value="a_entregar">A Entregar</option>
+          <option value="entregue">Entregue</option>
+        </select>
+      </div>
+      <div>
+        <label>Status de Pagamento</label>
+        <select id="statusPagamento" onchange="toggleValorPago()">
+          <option value="a_receber">A Receber</option>
+          <option value="pago">Pago</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="valor-pago-box aberto" id="valorPagoBox">
+      <label>Valor já pago (R$)</label>
+      <input type="number" id="valorPago" placeholder="0,00" min="0" step="0.01" oninput="atualizarFalta()" />
+      <div class="falta-preview" id="faltaPreview"></div>
+    </div>
+
+    <label>Observação (opcional)</label>
+    <textarea id="obs" placeholder="Alguma observação sobre a venda..."></textarea>
+
+    <button class="btn btn-primary" onclick="adicionarVenda()">✔ Registrar Venda</button>
+  </div>
+
+  <!-- Resumo -->
+  <div class="summary" id="summaryArea" style="display:none">
+    <div class="summary-box">
+      <div class="value" id="totalRecebido">R$ 0</div>
+      <div class="label-sm">Valor Total Recebido</div>
+    </div>
+    <div class="summary-box">
+      <div class="value" id="totalAReceber">R$ 0</div>
+      <div class="label-sm">Valor Total a Receber</div>
+    </div>
+  </div>
+
+  <!-- Filtros -->
+  <div class="filtro-row" id="filtroRow" style="display:none">
+    <button class="filtro-btn ativo" id="btnTodos" onclick="setFiltro('todos')">Todas as vendas</button>
+    <button class="filtro-btn" id="btnMinhas" onclick="setFiltro('minhas')">Só as minhas</button>
+    <button class="filtro-btn" id="btnHoje" onclick="setFiltro('hoje')">Hoje</button>
+  </div>
+
+  <input type="text" id="filtroCliente" placeholder="🔍 Buscar por nome do cliente..." style="display:none;margin-bottom:12px" oninput="renderVendas()" />
+
+  <!-- Notificações de alterações recentes -->
+  <div id="notificacoesArea" style="display:none"></div>
+
+  <!-- Lista de vendas -->
+  <div id="listaVendas">
+    <div class="loading">Conectando ao banco de dados...</div>
+  </div>
+
+  <!-- Botões de ação -->
+  <div id="botoesRelatorio" style="display:none">
+    <button class="btn btn-success" onclick="gerarPDF('geral')">📄 Relatório Geral</button>
+    <button class="btn btn-success" onclick="gerarPDF('a_receber')">📄 Relatório A Receber</button>
+    <button class="btn btn-success" onclick="gerarPDF('a_entregar')">📄 Relatório A Entregar</button>
+  </div>
+
+</div>
+
+<script>
+  // Firebase config
+  const firebaseConfig = {
+    apiKey: "AIzaSyAfG7jfNc_IWhF139gjwiWnIbgsMmxf160",
+    authDomain: "edifike.firebaseapp.com",
+    projectId: "edifike",
+    storageBucket: "edifike.firebasestorage.app",
+    messagingSenderId: "525094973924",
+    appId: "1:525094973924:web:8da3857c1729162a8e17f1"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+  let todasVendas = [];
+  let filtroAtual = 'todos';
+  let itensTemp = [];
+  let editandoId = null;
+  let itensEdicaoTemp = [];
+
+  window.onload = function () {
+    const agora = new Date();
+    document.getElementById('data').value = agora.toISOString().slice(0, 10);
+    document.getElementById('hora').value = agora.toTimeString().slice(0, 5);
+
+    const nomeGuardado = localStorage.getItem('vendedorNomeEdifike') || '';
+    document.getElementById('vendedorNome').value = nomeGuardado;
+    document.getElementById('vendedorNome').addEventListener('change', function () {
+      localStorage.setItem('vendedorNomeEdifike', this.value.trim());
+      renderVendas();
+    });
+
+    renderItensTemp();
+    toggleValorPago();
+    iniciarEscuta();
+  };
+
+  function iniciarEscuta() {
+    db.collection('vendas')
+      .orderBy('timestamp', 'desc')
+      .onSnapshot(
+        snapshot => {
+          document.getElementById('statusDot').className = 'status-dot online';
+          document.getElementById('statusDot').title = 'Conectado';
+          todasVendas = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          renderVendas();
+        },
+        err => {
+          document.getElementById('statusDot').className = 'status-dot';
+          document.getElementById('statusDot').title = 'Sem conexão';
+          document.getElementById('listaVendas').innerHTML =
+            '<div class="empty"><span>⚠️</span>Erro ao conectar. Verifique sua internet.</div>';
+        }
+      );
+  }
+
+  function toggleValorPago() {
+    const status = document.getElementById('statusPagamento').value;
+    const box = document.getElementById('valorPagoBox');
+    box.classList.toggle('aberto', status === 'a_receber');
+    if (status === 'pago') document.getElementById('valorPago').value = '';
+    atualizarFalta();
+  }
+
+  function atualizarFalta() {
+    const status = document.getElementById('statusPagamento').value;
+    const valor = totalItensTemp();
+    const valorPago = parseFloat(document.getElementById('valorPago').value) || 0;
+    const preview = document.getElementById('faltaPreview');
+    if (status === 'pago' || valor === 0) { preview.textContent = ''; return; }
+    const falta = Math.max(valor - valorPago, 0);
+    preview.textContent = `Falta pagar: ${formatarValor(falta)}`;
+  }
+
+  function adicionarItemVenda() {
+    const produtoEl = document.getElementById('produtoItem');
+    const valorEl = document.getElementById('valorItem');
+    const produto = produtoEl.value.trim();
+    const valor = parseFloat(valorEl.value);
+    if (!produto) { mostrarAlerta('Informe o produto/serviço do item.', true); return; }
+    if (!valor || valor <= 0) { mostrarAlerta('Informe um valor válido para o item.', true); return; }
+    itensTemp.push({ produto, valor });
+    produtoEl.value = '';
+    valorEl.value = '';
+    produtoEl.focus();
+    renderItensTemp();
+  }
+
+  function removerItemVenda(idx) {
+    itensTemp.splice(idx, 1);
+    renderItensTemp();
+  }
+
+  function totalItensTemp() {
+    return itensTemp.reduce((s, it) => s + it.valor, 0);
+  }
+
+  function renderItensTemp() {
+    const box = document.getElementById('itensBox');
+    if (itensTemp.length === 0) {
+      box.innerHTML = '';
+    } else {
+      let html = itensTemp.map((it, idx) => `
+        <div class="item-linha">
+          <div class="item-nome">${escapar(it.produto)}</div>
+          <div class="item-valor">${formatarValor(it.valor)}</div>
+          <button type="button" class="item-remove" onclick="removerItemVenda(${idx})" title="Remover">✕</button>
+        </div>`).join('');
+      html += `<div class="itens-total">Total: ${formatarValor(totalItensTemp())}</div>`;
+      box.innerHTML = html;
+    }
+    atualizarFalta();
+  }
+
+  function setFiltro(f) {
+    filtroAtual = f;
+    document.querySelectorAll('.filtro-btn').forEach(b => b.classList.remove('ativo'));
+    document.getElementById(f === 'todos' ? 'btnTodos' : f === 'minhas' ? 'btnMinhas' : 'btnHoje').classList.add('ativo');
+    renderVendas();
+  }
+
+  function vendasFiltradas() {
+    const meuNome = document.getElementById('vendedorNome').value.trim().toLowerCase();
+    const hoje = new Date().toISOString().slice(0, 10);
+    let lista = todasVendas;
+    if (filtroAtual === 'minhas') lista = lista.filter(v => v.vendedor && v.vendedor.toLowerCase() === meuNome);
+    if (filtroAtual === 'hoje') lista = lista.filter(v => v.data === hoje);
+
+    const buscaCliente = (document.getElementById('filtroCliente').value || '').trim().toLowerCase();
+    if (buscaCliente) lista = lista.filter(v => v.cliente && v.cliente.toLowerCase().includes(buscaCliente));
+
+    return lista;
+  }
+
+  async function adicionarVenda() {
+    const vendedor = document.getElementById('vendedorNome').value.trim();
+    const cliente = document.getElementById('cliente').value.trim();
+    const valor = totalItensTemp();
+    const data = document.getElementById('data').value;
+    const hora = document.getElementById('hora').value;
+    const obs = document.getElementById('obs').value.trim();
+    const statusEntrega = document.getElementById('statusEntrega').value;
+    const statusPagamento = document.getElementById('statusPagamento').value;
+    let valorPago = statusPagamento === 'pago' ? valor : (parseFloat(document.getElementById('valorPago').value) || 0);
+    if (valorPago > valor) valorPago = valor;
+
+    if (!vendedor) { mostrarAlerta('Informe seu nome antes de registrar.', true); return; }
+    if (!cliente) { mostrarAlerta('Informe o nome do cliente.', true); return; }
+    if (itensTemp.length === 0) { mostrarAlerta('Adicione ao menos um produto/serviço.', true); return; }
+    if (!data) { mostrarAlerta('Informe a data.', true); return; }
+
+    const btn = document.querySelector('.btn-primary');
+    btn.disabled = true;
+    btn.textContent = 'Salvando...';
+
+    try {
+      await db.collection('vendas').add({
+        vendedor, cliente, itens: itensTemp.slice(), valor, data, hora, obs,
+        statusEntrega, statusPagamento, valorPago, lancado: false,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      document.getElementById('cliente').value = '';
+      document.getElementById('obs').value = '';
+      document.getElementById('statusEntrega').value = 'a_entregar';
+      document.getElementById('statusPagamento').value = 'a_receber';
+      document.getElementById('valorPago').value = '';
+      itensTemp = [];
+      renderItensTemp();
+      toggleValorPago();
+      document.getElementById('cliente').focus();
+      mostrarAlerta('✔ Venda registrada!');
+    } catch (e) {
+      mostrarAlerta('Erro ao salvar. Verifique a conexão.', true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '✔ Registrar Venda';
+    }
+  }
+
+  async function toggleLancado(id, novoValor) {
+    const msg = novoValor
+      ? 'Confirma que esta venda foi lançada no sistema?'
+      : 'Confirma que deseja desmarcar esta venda como lançada no sistema?';
+    if (!confirm(msg)) return;
+    const venda = todasVendas.find(v => v.id === id);
+    const quem = (document.getElementById('vendedorNome').value || 'Alguém').trim();
+    const acao = `${quem} marcou a venda de ${venda ? venda.cliente : ''} como ${novoValor ? 'lançada no sistema' : 'não lançada'}`;
+    try {
+      await db.collection('vendas').doc(id).update({
+        lancado: novoValor,
+        historico: firebase.firestore.FieldValue.arrayUnion({ acao, quando: new Date() })
+      });
+    } catch (e) {
+      mostrarAlerta('Erro ao atualizar.', true);
+    }
+  }
+
+  async function atualizarStatusEntrega(id, novoStatus) {
+    const venda = todasVendas.find(v => v.id === id);
+    const quem = (document.getElementById('vendedorNome').value || 'Alguém').trim();
+    const acao = `${quem} atualizou a entrega de ${venda ? venda.cliente : ''} para "${novoStatus === 'entregue' ? 'Entregue' : 'A Entregar'}"`;
+    try {
+      await db.collection('vendas').doc(id).update({
+        statusEntrega: novoStatus,
+        historico: firebase.firestore.FieldValue.arrayUnion({ acao, quando: new Date() })
+      });
+    } catch (e) {
+      mostrarAlerta('Erro ao atualizar status de entrega.', true);
+    }
+  }
+
+  async function salvarPagamento(id) {
+    const venda = todasVendas.find(v => v.id === id);
+    if (!venda) return;
+    const statusPagamento = document.getElementById(`selPag-${id}`).value;
+    const valorTotal = venda.valor || 0;
+    let valorPago = parseFloat(document.getElementById(`valorPagoEdit-${id}`).value) || 0;
+    if (valorPago > valorTotal) valorPago = valorTotal;
+    if (statusPagamento === 'pago') valorPago = valorTotal;
+    const dataRecebimento = document.getElementById(`dataRecebEdit-${id}`).value;
+
+    if (valorPago > 0 && !dataRecebimento) {
+      mostrarAlerta('Informe a data do recebimento.', true);
+      return;
+    }
+
+    const quem = (document.getElementById('vendedorNome').value || 'Alguém').trim();
+    const acaoTxt = statusPagamento === 'pago'
+      ? `${quem} marcou o pagamento de ${venda.cliente} como Pago`
+      : `${quem} atualizou o pagamento de ${venda.cliente} (recebido: ${formatarValor(valorPago)})`;
+
+    try {
+      await db.collection('vendas').doc(id).update({
+        statusPagamento, valorPago,
+        dataRecebimento: valorPago > 0 ? dataRecebimento : '',
+        historico: firebase.firestore.FieldValue.arrayUnion({ acao: acaoTxt, quando: new Date() })
+      });
+      mostrarAlerta('✔ Pagamento atualizado!');
+    } catch (e) {
+      mostrarAlerta('Erro ao atualizar pagamento.', true);
+    }
+  }
+
+  function tempoAtras(data) {
+    const diffMs = Date.now() - data.getTime();
+    const min = Math.floor(diffMs / 60000);
+    if (min < 1) return 'agora mesmo';
+    if (min < 60) return `há ${min} min`;
+    const h = Math.floor(min / 60);
+    if (h < 24) return `há ${h}h`;
+    const d = Math.floor(h / 24);
+    return `há ${d} dia(s)`;
+  }
+
+  function renderNotificacoes() {
+    const box = document.getElementById('notificacoesArea');
+    const limite = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const eventos = [];
+    for (const v of todasVendas) {
+      if (!v.historico || !v.historico.length) continue;
+      for (const h of v.historico) {
+        const quando = h.quando && h.quando.toDate ? h.quando.toDate() : null;
+        if (quando && quando.getTime() >= limite) eventos.push({ acao: h.acao, quando });
+      }
+    }
+    eventos.sort((a, b) => b.quando - a.quando);
+
+    if (eventos.length === 0) {
+      box.style.display = 'none';
+      box.innerHTML = '';
+      return;
+    }
+
+    box.style.display = 'block';
+    box.innerHTML = `
+      <div class="notificacoes-box">
+        <div class="notificacoes-titulo">🔔 Alterações Recentes</div>
+        ${eventos.map(e => `
+          <div class="notificacao-item">
+            ${escapar(e.acao)} <span class="notificacao-tempo">(${tempoAtras(e.quando)})</span>
+          </div>
+        `).join('')}
+      </div>`;
+  }
+
+  function valorPagoEfetivo(v) {
+    return v.statusPagamento === 'pago' ? (v.valor || 0) : (v.valorPago || 0);
+  }
+
+  async function deletarVenda(id) {
+    if (!confirm('Remover esta venda?')) return;
+    try {
+      await db.collection('vendas').doc(id).delete();
+    } catch (e) {
+      mostrarAlerta('Erro ao remover.', true);
+    }
+  }
+
+  function iniciarEdicaoVenda(id) {
+    const v = todasVendas.find(x => x.id === id);
+    if (!v) return;
+    editandoId = id;
+    itensEdicaoTemp = (v.itens && v.itens.length ? v.itens : [{ produto: v.produto, valor: v.valor }]).map(it => ({ ...it }));
+    renderVendas();
+  }
+
+  function cancelarEdicaoVenda() {
+    editandoId = null;
+    itensEdicaoTemp = [];
+    renderVendas();
+  }
+
+  function totalItensEdicao() {
+    return itensEdicaoTemp.reduce((s, it) => s + it.valor, 0);
+  }
+
+  function renderItensEdicaoBox(id) {
+    const box = document.getElementById(`itensEdicaoBox-${id}`);
+    if (!box) return;
+    let html = itensEdicaoTemp.map((it, idx) => `
+      <div class="item-linha">
+        <div class="item-nome">${escapar(it.produto)}</div>
+        <div class="item-valor">${formatarValor(it.valor)}</div>
+        <button type="button" class="item-remove" onclick="removerItemEdicao('${id}', ${idx})" title="Remover">✕</button>
+      </div>`).join('');
+    html += `<div class="itens-total">Total: ${formatarValor(totalItensEdicao())}</div>`;
+    box.innerHTML = html;
+  }
+
+  function adicionarItemEdicao(id) {
+    const produtoEl = document.getElementById(`produtoItemEdicao-${id}`);
+    const valorEl = document.getElementById(`valorItemEdicao-${id}`);
+    const produto = produtoEl.value.trim();
+    const valor = parseFloat(valorEl.value);
+    if (!produto) { mostrarAlerta('Informe o produto/serviço do item.', true); return; }
+    if (!valor || valor <= 0) { mostrarAlerta('Informe um valor válido para o item.', true); return; }
+    itensEdicaoTemp.push({ produto, valor });
+    produtoEl.value = '';
+    valorEl.value = '';
+    produtoEl.focus();
+    renderItensEdicaoBox(id);
+  }
+
+  function removerItemEdicao(id, idx) {
+    itensEdicaoTemp.splice(idx, 1);
+    renderItensEdicaoBox(id);
+  }
+
+  async function salvarEdicaoVenda(id) {
+    const venda = todasVendas.find(v => v.id === id);
+    if (!venda) return;
+    const cliente = document.getElementById(`clienteEdicao-${id}`).value.trim();
+    const data = document.getElementById(`dataEdicao-${id}`).value;
+    const hora = document.getElementById(`horaEdicao-${id}`).value;
+    const obs = document.getElementById(`obsEdicao-${id}`).value.trim();
+
+    if (!cliente) { mostrarAlerta('Informe o nome do cliente.', true); return; }
+    if (itensEdicaoTemp.length === 0) { mostrarAlerta('Adicione ao menos um produto/serviço.', true); return; }
+    if (!data) { mostrarAlerta('Informe a data.', true); return; }
+
+    const valor = totalItensEdicao();
+    const quem = (document.getElementById('vendedorNome').value || 'Alguém').trim();
+    const acao = `${quem} corrigiu os dados da venda de ${venda.cliente}`;
+
+    try {
+      await db.collection('vendas').doc(id).update({
+        cliente, data, hora, obs, valor,
+        itens: itensEdicaoTemp.slice(),
+        historico: firebase.firestore.FieldValue.arrayUnion({ acao, quando: new Date() })
+      });
+      editandoId = null;
+      itensEdicaoTemp = [];
+      mostrarAlerta('✔ Venda atualizada!');
+    } catch (e) {
+      mostrarAlerta('Erro ao atualizar venda.', true);
+    }
+  }
+
+  function renderVendas() {
+    const lista = document.getElementById('listaVendas');
+    const summary = document.getElementById('summaryArea');
+    const botoes = document.getElementById('botoesRelatorio');
+    const filtroRow = document.getElementById('filtroRow');
+    const filtroCliente = document.getElementById('filtroCliente');
+    const meuNome = document.getElementById('vendedorNome').value.trim().toLowerCase();
+    const vendas = vendasFiltradas();
+
+    renderNotificacoes();
+
+    if (todasVendas.length === 0) {
+      lista.innerHTML = '<div class="empty"><span>📋</span>Nenhuma venda registrada ainda.</div>';
+      summary.style.display = 'none';
+      botoes.style.display = 'none';
+      filtroRow.style.display = 'none';
+      filtroCliente.style.display = 'none';
+      return;
+    }
+
+    filtroRow.style.display = 'flex';
+    filtroCliente.style.display = 'block';
+    summary.style.display = 'flex';
+    botoes.style.display = 'block';
+
+    const totalRecebido = vendas.reduce((s, v) => s + valorPagoEfetivo(v), 0);
+    const totalAReceber = vendas.reduce((s, v) => s + Math.max((v.valor || 0) - valorPagoEfetivo(v), 0), 0);
+    document.getElementById('totalRecebido').textContent = formatarValor(totalRecebido);
+    document.getElementById('totalAReceber').textContent = formatarValor(totalAReceber);
+
+    if (vendas.length === 0) {
+      lista.innerHTML = '<div class="empty"><span>🔍</span>Nenhuma venda neste filtro.</div>';
+      return;
+    }
+
+    let html = '';
+    for (const v of vendas) {
+      const ehMinha = v.vendedor && v.vendedor.toLowerCase() === meuNome;
+      const statusEntrega = v.statusEntrega || 'a_entregar';
+      const statusPagamento = v.statusPagamento || 'a_receber';
+      const valorPago = valorPagoEfetivo(v);
+      const falta = Math.max((v.valor || 0) - valorPago, 0);
+      const lancado = !!v.lancado;
+      const itens = v.itens && v.itens.length ? v.itens : [{ produto: v.produto, valor: v.valor }];
+      const produtosTxt = itens.map(it => `📦 ${escapar(it.produto)} - ${formatarValor(it.valor)}`).join('<br>');
+      const dataRecebimento = v.dataRecebimento || '';
+
+      if (v.id === editandoId) {
+        html += `
+          <div class="sale-item ${ehMinha ? 'minha' : ''}">
+            <div class="edicao-venda-box">
+              <label>Cliente</label>
+              <input type="text" id="clienteEdicao-${v.id}" value="${escaparAtributo(v.cliente)}" />
+              <div class="row">
+                <div>
+                  <label>Data</label>
+                  <input type="date" id="dataEdicao-${v.id}" value="${v.data || ''}" />
+                </div>
+                <div>
+                  <label>Hora</label>
+                  <input type="time" id="horaEdicao-${v.id}" value="${v.hora || ''}" />
+                </div>
+              </div>
+              <label>Observações</label>
+              <textarea id="obsEdicao-${v.id}">${escapar(v.obs || '')}</textarea>
+              <label>Produtos/Serviços</label>
+              <div class="edicao-itens-add">
+                <input type="text" id="produtoItemEdicao-${v.id}" placeholder="Produto/serviço" />
+                <input type="number" id="valorItemEdicao-${v.id}" placeholder="0,00" min="0" step="0.01" style="max-width:110px" />
+                <button type="button" class="btn-add-item" style="width:auto" onclick="adicionarItemEdicao('${v.id}')">+ Adicionar</button>
+              </div>
+              <div class="itens-box" id="itensEdicaoBox-${v.id}"></div>
+              <button class="btn-salvar-edicao" onclick="salvarEdicaoVenda('${v.id}')">💾 Salvar Alterações</button>
+              <button class="btn-cancelar-edicao" onclick="cancelarEdicaoVenda()">Cancelar</button>
+            </div>
+          </div>`;
+      } else {
+        html += `
+        <div class="sale-item ${ehMinha ? 'minha' : ''} ${statusEntrega === 'a_entregar' ? 'a-entregar' : ''} ${statusPagamento === 'a_receber' ? 'a-receber' : ''}">
+          <div class="sale-top">
+            <div>
+              <div class="cliente">${escapar(v.cliente)}</div>
+              <div class="produto">${produtosTxt}</div>
+              ${v.obs ? `<div class="produto" style="color:#888">💬 ${escapar(v.obs)}</div>` : ''}
+              <div class="data">🕐 ${formatarData(v.data)}${v.hora ? ' às ' + v.hora : ''}</div>
+              <span class="vendedor-tag">👤 ${escapar(v.vendedor || 'Desconhecido')}</span>
+              <div class="edit-status-row">
+                <select class="select-sm" onchange="atualizarStatusEntrega('${v.id}', this.value)">
+                  <option value="a_entregar" ${statusEntrega === 'a_entregar' ? 'selected' : ''}>⏳ A Entregar</option>
+                  <option value="entregue" ${statusEntrega === 'entregue' ? 'selected' : ''}>✔ Entregue</option>
+                </select>
+                <select class="select-sm" id="selPag-${v.id}">
+                  <option value="a_receber" ${statusPagamento === 'a_receber' ? 'selected' : ''}>⏳ A Receber</option>
+                  <option value="pago" ${statusPagamento === 'pago' ? 'selected' : ''}>💰 Pago</option>
+                </select>
+                <span class="badge ${lancado ? 'lancado' : 'nao-lancado'}" onclick="toggleLancado('${v.id}', ${!lancado})">${lancado ? '✔ Lançado no Sistema' : '○ Não Lançado'}</span>
+              </div>
+              <div class="pagamento-edit-box">
+                <input type="number" class="input-sm" id="valorPagoEdit-${v.id}" placeholder="Valor recebido (R$)" min="0" step="0.01" value="${valorPago || ''}" />
+                <input type="date" class="input-sm" id="dataRecebEdit-${v.id}" value="${dataRecebimento}" />
+                <button class="btn-salvar-pag" onclick="salvarPagamento('${v.id}')">💾 Salvar Pagamento</button>
+              </div>
+              ${statusPagamento === 'a_receber' && falta > 0 ? `<div class="falta-texto">Falta pagar: ${formatarValor(falta)}</div>` : ''}
+              ${dataRecebimento && valorPago > 0 ? `<div class="data-receb-texto">💵 Recebido em ${formatarData(dataRecebimento)}</div>` : ''}
+            </div>
+            <div style="display:flex;align-items:center;gap:4px">
+              <div class="valor">${formatarValor(v.valor)}</div>
+              ${ehMinha ? `<button class="edit-venda-btn" onclick="iniciarEdicaoVenda('${v.id}')" title="Editar venda">✏️</button>` : ''}
+              ${ehMinha ? `<button class="delete-btn" onclick="deletarVenda('${v.id}')" title="Remover">✕</button>` : ''}
+            </div>
+          </div>
+        </div>`;
+      }
+    }
+
+    lista.innerHTML = html;
+    if (editandoId) renderItensEdicaoBox(editandoId);
+  }
+
+  function gerarPDF(tipo) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const hoje = new Date().toLocaleDateString('pt-BR');
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+
+    let vendas = vendasFiltradas();
+    if (tipo === 'a_receber') vendas = vendas.filter(v => (v.statusPagamento || 'a_receber') === 'a_receber');
+    if (tipo === 'a_entregar') vendas = vendas.filter(v => (v.statusEntrega || 'a_entregar') === 'a_entregar');
+
+    const titulos = { geral: 'Relatório Geral de Vendas', a_receber: 'Relatório de Vendas A Receber', a_entregar: 'Relatório de Vendas A Entregar' };
+    const titulo = titulos[tipo] || 'Relatório de Vendas';
+    const nomesMeses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
+    // Cabeçalho branco com borda amarela
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, 0, pageWidth, 32, 'F');
+    doc.setFillColor(245, 166, 35);
+    doc.rect(0, 29, pageWidth, 3, 'F');
+
+    // Logo
+    try {
+      const logoEl = document.querySelector('header img');
+      const canvas = document.createElement('canvas');
+      canvas.width = logoEl.naturalWidth;
+      canvas.height = logoEl.naturalHeight;
+      canvas.getContext('2d').drawImage(logoEl, 0, 0);
+      const logoData = canvas.toDataURL('image/png');
+      doc.addImage(logoData, 'PNG', 14, 4, 60, 22);
+    } catch(e) {}
+
+    doc.setTextColor(100, 100, 100);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`${titulo}  |  ${hoje}  |  ${vendas.length} venda(s)`, pageWidth - 14, 18, { align: 'right' });
+
+    const linhasDe = (lista) => lista.map((v, i) => {
+      const statusEntrega = v.statusEntrega || 'a_entregar';
+      const recebido = valorPagoEfetivo(v);
+      const aReceber = Math.max((v.valor || 0) - recebido, 0);
+      const entregaTxt = statusEntrega === 'entregue' ? 'Entregue' : 'A Entregar';
+      const lancadoTxt = v.lancado ? 'Sim' : 'Não';
+      const itens = v.itens && v.itens.length ? v.itens : [{ produto: v.produto, valor: v.valor }];
+      const produtosTxt = itens.map(it => `${it.produto} (${formatarValor(it.valor)})`).join('\n');
+      return [
+        i + 1,
+        v.vendedor || '-',
+        v.cliente,
+        produtosTxt,
+        formatarValor(v.valor),
+        formatarValor(recebido),
+        formatarValor(aReceber),
+        entregaTxt,
+        lancadoTxt,
+        `${formatarData(v.data)}${v.hora ? ' ' + v.hora : ''}`
+      ];
+    });
+
+    const head = [['#', 'Vendedor', 'Cliente', 'Produtos', 'Valor Total', 'Recebido', 'A Receber', 'Entrega', 'Lançado', 'Data/Hora']];
+    const headStyles = { fillColor: [245, 166, 35], textColor: 255, fontStyle: 'bold', fontSize: 10 };
+    const bodyStyles = { fontSize: 9 };
+    const columnStyles = { 0: { cellWidth: 8 }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' } };
+    const margin = { left: 14, right: 14 };
+
+    if (tipo === 'geral') {
+      const grupos = {};
+      for (const v of vendas) {
+        const chave = (v.data || '').slice(0, 7) || 'sem-data';
+        if (!grupos[chave]) grupos[chave] = [];
+        grupos[chave].push(v);
+      }
+      const chaves = Object.keys(grupos).sort();
+
+      let y = 36;
+      for (const chave of chaves) {
+        const grupo = grupos[chave];
+        let tituloMes = 'Sem data';
+        if (chave !== 'sem-data') {
+          const [ano, mesNum] = chave.split('-');
+          tituloMes = `${nomesMeses[parseInt(mesNum, 10) - 1]} de ${ano}`;
+        }
+
+        if (y > pageHeight - 40) { doc.addPage(); y = 16; }
+
+        doc.setFontSize(13);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(245, 166, 35);
+        doc.text(tituloMes, margin.left, y);
+        y += 5;
+
+        doc.autoTable({
+          startY: y,
+          head,
+          body: linhasDe(grupo),
+          theme: 'striped',
+          headStyles, bodyStyles, columnStyles, margin
+        });
+        y = doc.lastAutoTable.finalY + 7;
+
+        const totalMes = grupo.reduce((s, v) => s + (v.valor || 0), 0);
+        const recebidoMes = grupo.reduce((s, v) => s + valorPagoEfetivo(v), 0);
+        const aReceberMes = grupo.reduce((s, v) => s + Math.max((v.valor || 0) - valorPagoEfetivo(v), 0), 0);
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(52, 168, 83);
+        doc.text(`Subtotal ${tituloMes}: ${formatarValor(totalMes)}   |   Recebido: ${formatarValor(recebidoMes)}   |   A Receber: ${formatarValor(aReceberMes)}`, margin.left, y);
+        y += 12;
+      }
+
+      if (y > pageHeight - 20) { doc.addPage(); y = 16; }
+      const total = vendas.reduce((s, v) => s + (v.valor || 0), 0);
+      const totalRecebido = vendas.reduce((s, v) => s + valorPagoEfetivo(v), 0);
+      const totalAReceber = vendas.reduce((s, v) => s + Math.max((v.valor || 0) - valorPagoEfetivo(v), 0), 0);
+      doc.setFontSize(13);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+      doc.text(`TOTAL GERAL: ${formatarValor(total)}   |   Recebido: ${formatarValor(totalRecebido)}   |   A Receber: ${formatarValor(totalAReceber)}`, margin.left, y);
+    } else {
+      doc.autoTable({
+        startY: 36,
+        head,
+        body: linhasDe(vendas),
+        theme: 'striped',
+        headStyles, bodyStyles, columnStyles, margin
+      });
+
+      const finalY = doc.lastAutoTable.finalY + 8;
+      const total = vendas.reduce((s, v) => s + (v.valor || 0), 0);
+      const totalRecebido = vendas.reduce((s, v) => s + valorPagoEfetivo(v), 0);
+      const totalAReceber = vendas.reduce((s, v) => s + Math.max((v.valor || 0) - valorPagoEfetivo(v), 0), 0);
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(52, 168, 83);
+      doc.text(`Total: ${formatarValor(total)}   |   Recebido: ${formatarValor(totalRecebido)}   |   A Receber: ${formatarValor(totalAReceber)}`, margin.left, finalY);
+    }
+
+    doc.save(`relatorio_vendas_${tipo}_${hoje.replace(/\//g, '-')}.pdf`);
+  }
+
+  function formatarValor(v) {
+    return (v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  }
+
+  function formatarData(d) {
+    if (!d) return '';
+    const [y, m, dia] = d.split('-');
+    return `${dia}/${m}/${y}`;
+  }
+
+  function escapar(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function escaparAtributo(str) {
+    return escapar(str).replace(/"/g,'&quot;');
+  }
+
+  function mostrarAlerta(msg, erro = false) {
+    const el = document.getElementById('alert');
+    el.textContent = msg;
+    el.className = 'alert show' + (erro ? ' erro' : '');
+    setTimeout(() => el.className = 'alert', 2500);
+  }
+</script>
+</body>
+</html>
