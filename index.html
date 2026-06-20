@@ -743,11 +743,11 @@
     if (!confirm(msg)) return;
     const venda = todasVendas.find(v => v.id === id);
     const quem = (document.getElementById('vendedorNome').value || 'Alguém').trim();
+    const acao = `${quem} marcou a venda de ${venda ? venda.cliente : ''} como ${novoValor ? 'lançada no sistema' : 'não lançada'}`;
     try {
       await db.collection('vendas').doc(id).update({
         lancado: novoValor,
-        ultimaAcao: `${quem} marcou a venda de ${venda ? venda.cliente : ''} como ${novoValor ? 'lançada no sistema' : 'não lançada'}`,
-        atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+        historico: firebase.firestore.FieldValue.arrayUnion({ acao, quando: new Date() })
       });
     } catch (e) {
       mostrarAlerta('Erro ao atualizar.', true);
@@ -757,11 +757,11 @@
   async function atualizarStatusEntrega(id, novoStatus) {
     const venda = todasVendas.find(v => v.id === id);
     const quem = (document.getElementById('vendedorNome').value || 'Alguém').trim();
+    const acao = `${quem} atualizou a entrega de ${venda ? venda.cliente : ''} para "${novoStatus === 'entregue' ? 'Entregue' : 'A Entregar'}"`;
     try {
       await db.collection('vendas').doc(id).update({
         statusEntrega: novoStatus,
-        ultimaAcao: `${quem} atualizou a entrega de ${venda ? venda.cliente : ''} para "${novoStatus === 'entregue' ? 'Entregue' : 'A Entregar'}"`,
-        atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+        historico: firebase.firestore.FieldValue.arrayUnion({ acao, quando: new Date() })
       });
     } catch (e) {
       mostrarAlerta('Erro ao atualizar status de entrega.', true);
@@ -792,8 +792,7 @@
       await db.collection('vendas').doc(id).update({
         statusPagamento, valorPago,
         dataRecebimento: valorPago > 0 ? dataRecebimento : '',
-        ultimaAcao: acaoTxt,
-        atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+        historico: firebase.firestore.FieldValue.arrayUnion({ acao: acaoTxt, quando: new Date() })
       });
       mostrarAlerta('✔ Pagamento atualizado!');
     } catch (e) {
@@ -814,13 +813,18 @@
 
   function renderNotificacoes() {
     const box = document.getElementById('notificacoesArea');
-    const limite = Date.now() - 3 * 24 * 60 * 60 * 1000;
-    const recentes = todasVendas
-      .filter(v => v.atualizadoEm && v.ultimaAcao && v.atualizadoEm.toDate().getTime() >= limite)
-      .sort((a, b) => b.atualizadoEm.toDate() - a.atualizadoEm.toDate())
-      .slice(0, 6);
+    const limite = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const eventos = [];
+    for (const v of todasVendas) {
+      if (!v.historico || !v.historico.length) continue;
+      for (const h of v.historico) {
+        const quando = h.quando && h.quando.toDate ? h.quando.toDate() : null;
+        if (quando && quando.getTime() >= limite) eventos.push({ acao: h.acao, quando });
+      }
+    }
+    eventos.sort((a, b) => b.quando - a.quando);
 
-    if (recentes.length === 0) {
+    if (eventos.length === 0) {
       box.style.display = 'none';
       box.innerHTML = '';
       return;
@@ -830,9 +834,9 @@
     box.innerHTML = `
       <div class="notificacoes-box">
         <div class="notificacoes-titulo">🔔 Alterações Recentes</div>
-        ${recentes.map(v => `
+        ${eventos.map(e => `
           <div class="notificacao-item">
-            ${escapar(v.ultimaAcao)} <span class="notificacao-tempo">(${tempoAtras(v.atualizadoEm.toDate())})</span>
+            ${escapar(e.acao)} <span class="notificacao-tempo">(${tempoAtras(e.quando)})</span>
           </div>
         `).join('')}
       </div>`;
