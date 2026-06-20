@@ -441,6 +441,61 @@
       color: #999;
       font-size: 0.72rem;
     }
+
+    .edit-venda-btn {
+      background: none;
+      border: none;
+      color: #ccc;
+      font-size: 1.1rem;
+      cursor: pointer;
+      padding: 0 0 0 8px;
+      line-height: 1;
+    }
+
+    .edit-venda-btn:hover { color: #4a90d9; }
+
+    .edicao-venda-box {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1.5px dashed #dde3ec;
+    }
+
+    .edicao-venda-box label {
+      margin-top: 8px;
+    }
+
+    .edicao-venda-box label:first-of-type { margin-top: 0; }
+
+    .edicao-itens-add {
+      display: flex;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .btn-salvar-edicao {
+      background: #34a853;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 10px;
+      margin-right: 6px;
+    }
+
+    .btn-cancelar-edicao {
+      background: #f0f4f8;
+      color: #888;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
@@ -575,6 +630,8 @@
   let todasVendas = [];
   let filtroAtual = 'todos';
   let itensTemp = [];
+  let editandoId = null;
+  let itensEdicaoTemp = [];
 
   window.onload = function () {
     const agora = new Date();
@@ -855,6 +912,86 @@
     }
   }
 
+  function iniciarEdicaoVenda(id) {
+    const v = todasVendas.find(x => x.id === id);
+    if (!v) return;
+    editandoId = id;
+    itensEdicaoTemp = (v.itens && v.itens.length ? v.itens : [{ produto: v.produto, valor: v.valor }]).map(it => ({ ...it }));
+    renderVendas();
+  }
+
+  function cancelarEdicaoVenda() {
+    editandoId = null;
+    itensEdicaoTemp = [];
+    renderVendas();
+  }
+
+  function totalItensEdicao() {
+    return itensEdicaoTemp.reduce((s, it) => s + it.valor, 0);
+  }
+
+  function renderItensEdicaoBox(id) {
+    const box = document.getElementById(`itensEdicaoBox-${id}`);
+    if (!box) return;
+    let html = itensEdicaoTemp.map((it, idx) => `
+      <div class="item-linha">
+        <div class="item-nome">${escapar(it.produto)}</div>
+        <div class="item-valor">${formatarValor(it.valor)}</div>
+        <button type="button" class="item-remove" onclick="removerItemEdicao('${id}', ${idx})" title="Remover">✕</button>
+      </div>`).join('');
+    html += `<div class="itens-total">Total: ${formatarValor(totalItensEdicao())}</div>`;
+    box.innerHTML = html;
+  }
+
+  function adicionarItemEdicao(id) {
+    const produtoEl = document.getElementById(`produtoItemEdicao-${id}`);
+    const valorEl = document.getElementById(`valorItemEdicao-${id}`);
+    const produto = produtoEl.value.trim();
+    const valor = parseFloat(valorEl.value);
+    if (!produto) { mostrarAlerta('Informe o produto/serviço do item.', true); return; }
+    if (!valor || valor <= 0) { mostrarAlerta('Informe um valor válido para o item.', true); return; }
+    itensEdicaoTemp.push({ produto, valor });
+    produtoEl.value = '';
+    valorEl.value = '';
+    produtoEl.focus();
+    renderItensEdicaoBox(id);
+  }
+
+  function removerItemEdicao(id, idx) {
+    itensEdicaoTemp.splice(idx, 1);
+    renderItensEdicaoBox(id);
+  }
+
+  async function salvarEdicaoVenda(id) {
+    const venda = todasVendas.find(v => v.id === id);
+    if (!venda) return;
+    const cliente = document.getElementById(`clienteEdicao-${id}`).value.trim();
+    const data = document.getElementById(`dataEdicao-${id}`).value;
+    const hora = document.getElementById(`horaEdicao-${id}`).value;
+    const obs = document.getElementById(`obsEdicao-${id}`).value.trim();
+
+    if (!cliente) { mostrarAlerta('Informe o nome do cliente.', true); return; }
+    if (itensEdicaoTemp.length === 0) { mostrarAlerta('Adicione ao menos um produto/serviço.', true); return; }
+    if (!data) { mostrarAlerta('Informe a data.', true); return; }
+
+    const valor = totalItensEdicao();
+    const quem = (document.getElementById('vendedorNome').value || 'Alguém').trim();
+    const acao = `${quem} corrigiu os dados da venda de ${venda.cliente}`;
+
+    try {
+      await db.collection('vendas').doc(id).update({
+        cliente, data, hora, obs, valor,
+        itens: itensEdicaoTemp.slice(),
+        historico: firebase.firestore.FieldValue.arrayUnion({ acao, quando: new Date() })
+      });
+      editandoId = null;
+      itensEdicaoTemp = [];
+      mostrarAlerta('✔ Venda atualizada!');
+    } catch (e) {
+      mostrarAlerta('Erro ao atualizar venda.', true);
+    }
+  }
+
   function renderVendas() {
     const lista = document.getElementById('listaVendas');
     const summary = document.getElementById('summaryArea');
@@ -901,7 +1038,38 @@
       const itens = v.itens && v.itens.length ? v.itens : [{ produto: v.produto, valor: v.valor }];
       const produtosTxt = itens.map(it => `📦 ${escapar(it.produto)} - ${formatarValor(it.valor)}`).join('<br>');
       const dataRecebimento = v.dataRecebimento || '';
-      html += `
+
+      if (v.id === editandoId) {
+        html += `
+          <div class="sale-item ${ehMinha ? 'minha' : ''}">
+            <div class="edicao-venda-box">
+              <label>Cliente</label>
+              <input type="text" id="clienteEdicao-${v.id}" value="${escaparAtributo(v.cliente)}" />
+              <div class="row">
+                <div>
+                  <label>Data</label>
+                  <input type="date" id="dataEdicao-${v.id}" value="${v.data || ''}" />
+                </div>
+                <div>
+                  <label>Hora</label>
+                  <input type="time" id="horaEdicao-${v.id}" value="${v.hora || ''}" />
+                </div>
+              </div>
+              <label>Observações</label>
+              <textarea id="obsEdicao-${v.id}">${escapar(v.obs || '')}</textarea>
+              <label>Produtos/Serviços</label>
+              <div class="edicao-itens-add">
+                <input type="text" id="produtoItemEdicao-${v.id}" placeholder="Produto/serviço" />
+                <input type="number" id="valorItemEdicao-${v.id}" placeholder="0,00" min="0" step="0.01" style="max-width:110px" />
+                <button type="button" class="btn-add-item" style="width:auto" onclick="adicionarItemEdicao('${v.id}')">+ Adicionar</button>
+              </div>
+              <div class="itens-box" id="itensEdicaoBox-${v.id}"></div>
+              <button class="btn-salvar-edicao" onclick="salvarEdicaoVenda('${v.id}')">💾 Salvar Alterações</button>
+              <button class="btn-cancelar-edicao" onclick="cancelarEdicaoVenda()">Cancelar</button>
+            </div>
+          </div>`;
+      } else {
+        html += `
         <div class="sale-item ${ehMinha ? 'minha' : ''} ${statusEntrega === 'a_entregar' ? 'a-entregar' : ''} ${statusPagamento === 'a_receber' ? 'a-receber' : ''}">
           <div class="sale-top">
             <div>
@@ -931,13 +1099,16 @@
             </div>
             <div style="display:flex;align-items:center;gap:4px">
               <div class="valor">${formatarValor(v.valor)}</div>
+              ${ehMinha ? `<button class="edit-venda-btn" onclick="iniciarEdicaoVenda('${v.id}')" title="Editar venda">✏️</button>` : ''}
               ${ehMinha ? `<button class="delete-btn" onclick="deletarVenda('${v.id}')" title="Remover">✕</button>` : ''}
             </div>
           </div>
         </div>`;
+      }
     }
 
     lista.innerHTML = html;
+    if (editandoId) renderItensEdicaoBox(editandoId);
   }
 
   function gerarPDF(tipo) {
@@ -1092,6 +1263,10 @@
 
   function escapar(str) {
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function escaparAtributo(str) {
+    return escapar(str).replace(/"/g,'&quot;');
   }
 
   function mostrarAlerta(msg, erro = false) {
