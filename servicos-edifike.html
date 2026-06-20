@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EDIFIKE - Controle de Serviços</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #f0f4f8;
+      color: #333;
+      min-height: 100vh;
+    }
+
+    header {
+      background: white;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+      border-bottom: 3px solid #f5a623;
+    }
+
+    header img { height: 44px; flex: 1; object-fit: contain; object-position: left; }
+    header .app-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #888;
+      white-space: nowrap;
+      text-align: right;
+    }
+
+    .status-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: #ff9800;
+      flex-shrink: 0;
+    }
+    .status-dot.online { background: #4caf50; }
+
+    .container { padding: 16px; max-width: 680px; margin: 0 auto; }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .card h2 {
+      font-size: 1rem;
+      color: #f5a623;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #555;
+      margin-bottom: 4px;
+      margin-top: 12px;
+    }
+
+    label:first-of-type { margin-top: 0; }
+
+    input, select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1.5px solid #dde3ec;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      color: #333;
+      background: #fafbff;
+      transition: border 0.2s;
+      outline: none;
+    }
+
+    input:focus, select:focus {
+      border-color: #f5a623;
+      background: white;
+    }
+
+    .row { display: flex; gap: 10px; }
+    .row > div { flex: 1; }
+
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 13px;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      margin-top: 16px;
+    }
+
+    .btn:active { transform: scale(0.98); }
+    .btn-primary { background: #f5a623; color: white; }
+    .btn-primary:hover { opacity: 0.9; }
+
+    /* Resumo */
+    .summary {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .summary-box {
+      flex: 1;
+      background: white;
+      border-radius: 10px;
+      padding: 14px 8px;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .summary-box .val {
+      font-size: 1.4rem;
+      font-weight: 700;
+    }
+
+    .summary-box .lbl {
+      font-size: 0.70rem;
+      color: #888;
+      margin-top: 2px;
+    }
+
+    .val.andamento { color: #f5a623; }
+    .val.parado    { color: #ea4335; }
+    .val.concluido { color: #34a853; }
+
+    /* Filtros */
+    .filtro-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .filtro-btn {
+      flex: 1;
+      padding: 8px 4px;
+      border: 1.5px solid #dde3ec;
+      border-radius: 8px;
+      background: white;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: #888;
+      transition: all 0.2s;
+    }
+
+    .filtro-btn.ativo {
+      border-color: #f5a623;
+      background: #f5a623;
+      color: white;
+    }
+
+    /* Card de serviço */
+    .srv-card {
+      background: white;
+      border-radius: 12px;
+      margin-bottom: 14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+
+    .srv-header {
+      padding: 14px 16px;
+      border-left: 5px solid #ccc;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .srv-card.andamento .srv-header { border-left-color: #f5a623; }
+    .srv-card.parado    .srv-header { border-left-color: #ea4335; }
+    .srv-card.concluido .srv-header { border-left-color: #34a853; }
+
+    .srv-info { flex: 1; min-width: 0; }
+
+    .srv-tipo   { font-weight: 700; font-size: 0.95rem; }
+    .srv-cliente { font-size: 0.85rem; color: #555; margin-top: 2px; }
+    .srv-data   { font-size: 0.75rem; color: #aaa; margin-top: 3px; }
+
+    .srv-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+
+    .badge {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+
+    .badge.andamento { background: #fff4e0; color: #f5a623; }
+    .badge.parado    { background: #fce8e6; color: #ea4335; }
+    .badge.concluido { background: #e6f4ea; color: #34a853; }
+    .badge.pago      { background: #e6f4ea; color: #34a853; }
+    .badge.a_receber { background: #fff4e0; color: #c47d00; }
+
+    .vendedor-tag {
+      font-size: 0.72rem;
+      background: #f0f4f8;
+      color: #666;
+      padding: 2px 8px;
+      border-radius: 20px;
+      display: inline-block;
+      margin-top: 4px;
+    }
+
+    .srv-valor {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #34a853;
+      margin-top: 3px;
+    }
+
+    .falta-texto {
+      font-size: 0.78rem;
+      color: #ea4335;
+      margin-top: 4px;
+      font-weight: 600;
+    }
+
+    .valor-pago-box { display: none; }
+    .valor-pago-box.aberto { display: block; }
+
+    .falta-preview {
+      font-size: 0.78rem;
+      color: #888;
+      margin-top: 4px;
+    }
+
+    textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1.5px solid #dde3ec;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      color: #333;
+      background: #fafbff;
+      outline: none;
+      resize: vertical;
+      min-height: 60px;
+      font-family: inherit;
+    }
+
+    textarea:focus { border-color: #f5a623; background: white; }
+
+    .status-select-mini {
+      font-size: 0.75rem;
+      padding: 4px 6px;
+      border: 1.5px solid #dde3ec;
+      border-radius: 6px;
+      background: #fafbff;
+      cursor: pointer;
+    }
+
+    .delete-btn {
+      background: none;
+      border: none;
+      color: #ccc;
+      font-size: 1rem;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0;
+    }
+
+    .delete-btn:hover { color: #ea4335; }
+
+    .edit-btn {
+      background: none;
+      border: none;
+      color: #ccc;
+      font-size: 0.95rem;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0;
+    }
+
+    .edit-btn:hover { color: #f5a623; }
+
+    /* Tabela de viagens */
+    .viagens-section {
+      border-top: 1px solid #f0f4f8;
+      padding: 0 16px 14px;
+    }
+
+    .viagens-titulo {
+      font-size: 0.80rem;
+      font-weight: 700;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 10px 0 8px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+
+    th {
+      background: #f0f4f8;
+      color: #666;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 6px 8px;
+      text-align: left;
+    }
+
+    td {
+      padding: 7px 8px;
+      border-bottom: 1px solid #f5f5f5;
+      color: #444;
+      vertical-align: middle;
+    }
+
+    tr:last-child td { border-bottom: none; }
+
+    td.del-cell {
+      width: 50px;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    /* Formulário inline de viagem */
+    .add-viagem-form {
+      margin-top: 10px;
+      background: #fafbff;
+      border: 1.5px dashed #dde3ec;
+      border-radius: 10px;
+      padding: 12px;
+      display: none;
+    }
+
+    .add-viagem-form.aberto { display: block; }
+
+    .add-viagem-form .row { flex-wrap: wrap; }
+    .add-viagem-form .row > div { min-width: 130px; }
+
+    .add-viagem-form input {
+      font-size: 0.85rem;
+      padding: 8px 10px;
+    }
+
+    .btn-add-viagem {
+      margin-top: 10px;
+      padding: 8px 14px;
+      background: #f5a623;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-add-viagem:hover { opacity: 0.9; }
+
+    .btn-toggle-viagem {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #f5a623;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      margin-top: 8px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .btn-toggle-viagem:hover { text-decoration: underline; }
+
+    /* Alert */
+    .alert {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #34a853;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      z-index: 999;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    .alert.show { opacity: 1; }
+    .alert.erro { background: #ea4335; }
+
+    .empty {
+      text-align: center;
+      color: #bbb;
+      padding: 30px 0;
+      font-size: 0.9rem;
+    }
+
+    .empty span { display: block; font-size: 2rem; margin-bottom: 8px; }
+
+    .loading {
+      text-align: center;
+      color: #aaa;
+      padding: 20px 0;
+      font-size: 0.85rem;
+    }
+
+    .no-viagens {
+      font-size: 0.80rem;
+      color: #bbb;
+      text-align: center;
+      padding: 8px 0 4px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <img src="logo-edifike.jpeg" alt="Edifique Terraplanagem e Construções" />
+  <div class="app-title">Controle de<br>Serviços</div>
+  <div class="status-dot" id="statusDot" title="Conectando..." style="margin-left:8px"></div>
+</header>
+
+<div id="alert" class="alert"></div>
+
+<div class="container">
+
+  <!-- Vendedor -->
+  <div class="card">
+    <h2>👤 Identificação</h2>
+    <label>Seu nome (vendedor)</label>
+    <input type="text" id="vendedorNome" placeholder="Digite seu nome" />
+  </div>
+
+  <!-- Novo serviço -->
+  <div class="card">
+    <h2>➕ Novo Serviço</h2>
+
+    <label>Tipo de Serviço</label>
+    <input type="text" id="tipo" placeholder="Ex: Terraplanagem, Transporte, Escavação..." />
+
+    <label>Cliente</label>
+    <input type="text" id="cliente" placeholder="Ex: Construtora Silva" />
+
+    <label>Valor do Serviço (R$)</label>
+    <input type="number" id="valor" placeholder="0,00" min="0" step="0.01" oninput="atualizarFalta()" />
+
+    <div class="row">
+      <div>
+        <label>Data de Início</label>
+        <input type="date" id="dataInicio" />
+      </div>
+      <div>
+        <label>Status</label>
+        <select id="status">
+          <option value="andamento">🔄 Em Andamento</option>
+          <option value="parado">⛔ Parado</option>
+          <option value="concluido">✅ Concluído</option>
+        </select>
+      </div>
+    </div>
+
+    <label>Status de Pagamento</label>
+    <select id="statusPagamento" onchange="toggleValorPago()">
+      <option value="a_receber">A Receber</option>
+      <option value="pago">Pago</option>
+    </select>
+
+    <div class="valor-pago-box aberto" id="valorPagoBox">
+      <label>Valor já pago (R$)</label>
+      <input type="number" id="valorPago" placeholder="0,00" min="0" step="0.01" oninput="atualizarFalta()" />
+      <div class="falta-preview" id="faltaPreview"></div>
+    </div>
+
+    <label>Observações (opcional)</label>
+    <textarea id="obs" placeholder="Alguma observação sobre o serviço..."></textarea>
+
+    <button class="btn btn-primary" onclick="adicionarServico()">✔ Registrar Serviço</button>
+  </div>
+
+  <!-- Resumo -->
+  <div class="summary" id="summaryArea" style="display:none">
+    <div class="summary-box">
+      <div class="val andamento" id="cntAndamento">0</div>
+      <div class="lbl">Em Andamento</div>
+    </div>
+    <div class="summary-box">
+      <div class="val parado" id="cntParado">0</div>
+      <div class="lbl">Parados</div>
+    </div>
+    <div class="summary-box">
+      <div class="val concluido" id="cntConcluido">0</div>
+      <div class="lbl">Concluídos</div>
+    </div>
+  </div>
+
+  <!-- Filtros -->
+  <div class="filtro-row" id="filtroRow" style="display:none">
+    <button class="filtro-btn ativo" id="btnTodos"     onclick="setFiltro('todos')">Todos</button>
+    <button class="filtro-btn"       id="btnAndamento" onclick="setFiltro('andamento')">🔄 Andamento</button>
+    <button class="filtro-btn"       id="btnParado"    onclick="setFiltro('parado')">⛔ Parado</button>
+    <button class="filtro-btn"       id="btnConcluido" onclick="setFiltro('concluido')">✅ Concluído</button>
+  </div>
+
+  <!-- Lista de serviços -->
+  <div id="listaServicos">
+    <div class="loading">Conectando ao banco de dados...</div>
+  </div>
+
+</div>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyAfG7jfNc_IWhF139gjwiWnIbgsMmxf160",
+    authDomain: "edifike.firebaseapp.com",
+    projectId: "edifike",
+    storageBucket: "edifike.firebasestorage.app",
+    messagingSenderId: "525094973924",
+    appId: "1:525094973924:web:8da3857c1729162a8e17f1"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+  let servicos = [];
+  let viagens  = [];
+  let filtroAtual = 'todos';
+  let formsAbertos = new Set();
+
+  window.onload = function () {
+    document.getElementById('dataInicio').value = new Date().toISOString().slice(0, 10);
+
+    const nomeGuardado = localStorage.getItem('vendedorNomeEdifike') || '';
+    document.getElementById('vendedorNome').value = nomeGuardado;
+    document.getElementById('vendedorNome').addEventListener('change', function () {
+      localStorage.setItem('vendedorNomeEdifike', this.value.trim());
+    });
+
+    toggleValorPago();
+    iniciarEscuta();
+  };
+
+  function toggleValorPago() {
+    const status = document.getElementById('statusPagamento').value;
+    const box = document.getElementById('valorPagoBox');
+    box.classList.toggle('aberto', status === 'a_receber');
+    if (status === 'pago') document.getElementById('valorPago').value = '';
+    atualizarFalta();
+  }
+
+  function atualizarFalta() {
+    const status = document.getElementById('statusPagamento').value;
+    const valor = parseFloat(document.getElementById('valor').value) || 0;
+    const valorPago = parseFloat(document.getElementById('valorPago').value) || 0;
+    const preview = document.getElementById('faltaPreview');
+    if (status === 'pago' || valor === 0) { preview.textContent = ''; return; }
+    const falta = Math.max(valor - valorPago, 0);
+    preview.textContent = `Falta pagar: ${formatarValor(falta)}`;
+  }
+
+  function iniciarEscuta() {
+    db.collection('servicos').orderBy('timestamp', 'desc').onSnapshot(
+      snap => {
+        document.getElementById('statusDot').className = 'status-dot online';
+        document.getElementById('statusDot').title = 'Conectado';
+        servicos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderTudo();
+      },
+      () => {
+        document.getElementById('statusDot').className = 'status-dot';
+        document.getElementById('statusDot').title = 'Sem conexão';
+        document.getElementById('listaServicos').innerHTML =
+          '<div class="empty"><span>⚠️</span>Erro ao conectar. Verifique sua internet.</div>';
+      }
+    );
+
+    db.collection('viagens').orderBy('data', 'asc').onSnapshot(
+      snap => {
+        viagens = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderTudo();
+      }
+    );
+  }
+
+  function setFiltro(f) {
+    filtroAtual = f;
+    document.querySelectorAll('.filtro-btn').forEach(b => b.classList.remove('ativo'));
+    const ids = { todos: 'btnTodos', andamento: 'btnAndamento', parado: 'btnParado', concluido: 'btnConcluido' };
+    document.getElementById(ids[f]).classList.add('ativo');
+    renderTudo();
+  }
+
+  async function adicionarServico() {
+    const vendedor  = document.getElementById('vendedorNome').value.trim();
+    const tipo      = document.getElementById('tipo').value.trim();
+    const cliente   = document.getElementById('cliente').value.trim();
+    const valor     = parseFloat(document.getElementById('valor').value) || 0;
+    const dataInicio = document.getElementById('dataInicio').value;
+    const status    = document.getElementById('status').value;
+    const statusPagamento = document.getElementById('statusPagamento').value;
+    const obs       = document.getElementById('obs').value.trim();
+    let valorPago = statusPagamento === 'pago' ? valor : (parseFloat(document.getElementById('valorPago').value) || 0);
+    if (valorPago > valor) valorPago = valor;
+
+    if (!vendedor) { mostrarAlerta('Informe seu nome antes de registrar.', true); return; }
+    if (!tipo)    { mostrarAlerta('Informe o tipo de serviço.', true); return; }
+    if (!cliente) { mostrarAlerta('Informe o cliente.', true); return; }
+    if (!dataInicio) { mostrarAlerta('Informe a data de início.', true); return; }
+
+    const btn = document.querySelector('.btn-primary');
+    btn.disabled = true;
+    btn.textContent = 'Salvando...';
+
+    try {
+      await db.collection('servicos').add({
+        vendedor, tipo, cliente, valor, dataInicio, status,
+        statusPagamento, valorPago, obs,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      document.getElementById('tipo').value    = '';
+      document.getElementById('cliente').value = '';
+      document.getElementById('valor').value   = '';
+      document.getElementById('status').value  = 'andamento';
+      document.getElementById('statusPagamento').value = 'a_receber';
+      document.getElementById('valorPago').value = '';
+      document.getElementById('obs').value = '';
+      toggleValorPago();
+      mostrarAlerta('✔ Serviço registrado!');
+    } catch {
+      mostrarAlerta('Erro ao salvar. Verifique a conexão.', true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '✔ Registrar Serviço';
+    }
+  }
+
+  async function atualizarStatus(id, novoStatus) {
+    try {
+      await db.collection('servicos').doc(id).update({ status: novoStatus });
+    } catch {
+      mostrarAlerta('Erro ao atualizar status.', true);
+    }
+  }
+
+  async function deletarServico(id) {
+    if (!confirm('Remover este serviço e todas as viagens associadas?')) return;
+    try {
+      // Remove viagens do serviço
+      const viagBatch = db.batch();
+      viagens.filter(v => v.servicoId === id).forEach(v => {
+        viagBatch.delete(db.collection('viagens').doc(v.id));
+      });
+      await viagBatch.commit();
+      await db.collection('servicos').doc(id).delete();
+    } catch {
+      mostrarAlerta('Erro ao remover.', true);
+    }
+  }
+
+  async function adicionarViagem(servicoId) {
+    const prop = document.getElementById(`prop_${servicoId}`).value.trim();
+    const qtd  = parseInt(document.getElementById(`qtd_${servicoId}`).value) || 0;
+    const data = document.getElementById(`data_${servicoId}`).value;
+
+    if (!prop) { mostrarAlerta('Informe o nome do proprietário.', true); return; }
+    if (qtd < 1) { mostrarAlerta('Informe a quantidade de viagens.', true); return; }
+    if (!data)  { mostrarAlerta('Informe a data.', true); return; }
+
+    const btn = document.getElementById(`btnSalvarViagem_${servicoId}`);
+    btn.disabled = true;
+    btn.textContent = 'Salvando...';
+
+    try {
+      await db.collection('viagens').add({
+        servicoId, proprietario: prop, quantidade: qtd, data,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      document.getElementById(`prop_${servicoId}`).value = '';
+      document.getElementById(`qtd_${servicoId}`).value  = '';
+      document.getElementById(`data_${servicoId}`).value = '';
+      mostrarAlerta('✔ Viagem registrada!');
+    } catch {
+      mostrarAlerta('Erro ao salvar viagem.', true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Salvar Viagem';
+    }
+  }
+
+  async function editarQuantidadeViagem(id, atual) {
+    const novo = prompt('Nova quantidade de viagens:', atual);
+    if (novo === null) return;
+    const qtd = parseInt(novo);
+    if (!qtd || qtd < 1) { mostrarAlerta('Quantidade inválida.', true); return; }
+    try {
+      await db.collection('viagens').doc(id).update({ quantidade: qtd });
+      mostrarAlerta('✔ Quantidade atualizada!');
+    } catch {
+      mostrarAlerta('Erro ao atualizar.', true);
+    }
+  }
+
+  async function deletarViagem(id) {
+    if (!confirm('Remover esta viagem?')) return;
+    try {
+      await db.collection('viagens').doc(id).delete();
+    } catch {
+      mostrarAlerta('Erro ao remover viagem.', true);
+    }
+  }
+
+  function toggleForm(servicoId) {
+    if (formsAbertos.has(servicoId)) {
+      formsAbertos.delete(servicoId);
+    } else {
+      formsAbertos.add(servicoId);
+    }
+    renderTudo();
+  }
+
+  function renderTudo() {
+    const lista     = document.getElementById('listaServicos');
+    const summary   = document.getElementById('summaryArea');
+    const filtroRow = document.getElementById('filtroRow');
+
+    if (servicos.length === 0) {
+      lista.innerHTML = '<div class="empty"><span>🚛</span>Nenhum serviço registrado ainda.</div>';
+      summary.style.display   = 'none';
+      filtroRow.style.display = 'none';
+      return;
+    }
+
+    summary.style.display   = 'flex';
+    filtroRow.style.display = 'flex';
+
+    document.getElementById('cntAndamento').textContent = servicos.filter(s => s.status === 'andamento').length;
+    document.getElementById('cntParado').textContent    = servicos.filter(s => s.status === 'parado').length;
+    document.getElementById('cntConcluido').textContent = servicos.filter(s => s.status === 'concluido').length;
+
+    const filtrados = filtroAtual === 'todos'
+      ? servicos
+      : servicos.filter(s => s.status === filtroAtual);
+
+    if (filtrados.length === 0) {
+      lista.innerHTML = '<div class="empty"><span>🔍</span>Nenhum serviço neste filtro.</div>';
+      return;
+    }
+
+    const statusLabel = { andamento: '🔄 Em Andamento', parado: '⛔ Parado', concluido: '✅ Concluído' };
+    const hoje = new Date().toISOString().slice(0, 10);
+
+    let html = '';
+    for (const s of filtrados) {
+      const minhasViagens = viagens.filter(v => v.servicoId === s.id);
+      const totalViagens  = minhasViagens.reduce((a, v) => a + (v.quantidade || 0), 0);
+      const formAberto    = formsAbertos.has(s.id);
+
+      let tabelaViagens = '';
+      if (minhasViagens.length > 0) {
+        let linhas = '';
+        for (const v of minhasViagens) {
+          linhas += `
+            <tr>
+              <td>${escapar(v.proprietario)}</td>
+              <td style="text-align:center;font-weight:700;color:#f5a623">${v.quantidade}</td>
+              <td>${formatarData(v.data)}</td>
+              <td class="del-cell">
+                <button class="edit-btn" onclick="editarQuantidadeViagem('${v.id}', ${v.quantidade})" title="Editar quantidade">✏️</button>
+                <button class="delete-btn" onclick="deletarViagem('${v.id}')" title="Remover viagem">✕</button>
+              </td>
+            </tr>`;
+        }
+        tabelaViagens = `
+          <table>
+            <thead>
+              <tr>
+                <th>Proprietário do Caminhão</th>
+                <th style="text-align:center">Qtd. Viagens</th>
+                <th>Data</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>${linhas}</tbody>
+          </table>`;
+      } else {
+        tabelaViagens = '<div class="no-viagens">Nenhuma viagem registrada</div>';
+      }
+
+      const statusPagamento = s.statusPagamento || 'a_receber';
+      const valorPago = s.valorPago || 0;
+      const falta = Math.max((s.valor || 0) - valorPago, 0);
+
+      html += `
+        <div class="srv-card ${s.status || ''}">
+          <div class="srv-header">
+            <div class="srv-info">
+              <div class="srv-tipo">${escapar(s.tipo)}</div>
+              <div class="srv-cliente">👤 ${escapar(s.cliente)}</div>
+              <div class="srv-data">📅 Início: ${formatarData(s.dataInicio)}</div>
+              ${s.valor ? `<div class="srv-valor">${formatarValor(s.valor)}</div>` : ''}
+              ${s.vendedor ? `<span class="vendedor-tag">🧑‍💼 ${escapar(s.vendedor)}</span>` : ''}
+              ${s.obs ? `<div class="srv-cliente" style="color:#888">💬 ${escapar(s.obs)}</div>` : ''}
+              <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+                <span class="badge ${statusPagamento}">${statusPagamento === 'pago' ? '💰 Pago' : '⏳ A Receber'}</span>
+              </div>
+              ${statusPagamento === 'a_receber' && falta > 0 ? `<div class="falta-texto">Falta pagar: ${formatarValor(falta)}</div>` : ''}
+            </div>
+            <div class="srv-right">
+              <span class="badge ${s.status || ''}">${statusLabel[s.status] || s.status}</span>
+              <select class="status-select-mini" onchange="atualizarStatus('${s.id}', this.value)">
+                <option value="andamento" ${s.status === 'andamento' ? 'selected' : ''}>🔄 Andamento</option>
+                <option value="parado"    ${s.status === 'parado'    ? 'selected' : ''}>⛔ Parado</option>
+                <option value="concluido" ${s.status === 'concluido' ? 'selected' : ''}>✅ Concluído</option>
+              </select>
+              <button class="delete-btn" onclick="deletarServico('${s.id}')" title="Remover serviço" style="margin-top:4px">✕</button>
+            </div>
+          </div>
+
+          <div class="viagens-section">
+            <div class="viagens-titulo">
+              🚛 Viagens ${totalViagens > 0 ? `— <span style="color:#1a73e8">${totalViagens} no total</span>` : ''}
+            </div>
+
+            ${tabelaViagens}
+
+            <button class="btn-toggle-viagem" onclick="toggleForm('${s.id}')">
+              ${formAberto ? '▲ Cancelar' : '➕ Adicionar viagem'}
+            </button>
+
+            <div class="add-viagem-form ${formAberto ? 'aberto' : ''}">
+              <div class="row">
+                <div>
+                  <label style="margin-top:0">Proprietário do Caminhão</label>
+                  <input type="text" id="prop_${s.id}" placeholder="Nome do proprietário" />
+                </div>
+                <div>
+                  <label style="margin-top:0">Qtd. Viagens</label>
+                  <input type="number" id="qtd_${s.id}" placeholder="0" min="1" />
+                </div>
+                <div>
+                  <label style="margin-top:0">Data</label>
+                  <input type="date" id="data_${s.id}" value="${hoje}" />
+                </div>
+              </div>
+              <button class="btn-add-viagem" id="btnSalvarViagem_${s.id}" onclick="adicionarViagem('${s.id}')">
+                Salvar Viagem
+              </button>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    lista.innerHTML = html;
+  }
+
+  function formatarValor(v) {
+    return (v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  }
+
+  function formatarData(d) {
+    if (!d) return '-';
+    const [y, m, dia] = d.split('-');
+    return `${dia}/${m}/${y}`;
+  }
+
+  function escapar(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function mostrarAlerta(msg, erro = false) {
+    const el = document.getElementById('alert');
+    el.textContent = msg;
+    el.className = 'alert show' + (erro ? ' erro' : '');
+    setTimeout(() => el.className = 'alert', 2500);
+  }
+</script>
+</body>
+</html>
