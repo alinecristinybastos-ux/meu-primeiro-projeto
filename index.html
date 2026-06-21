@@ -559,6 +559,13 @@
     </div>
   </div>
 
+  <!-- Botões de ação -->
+  <div id="botoesRelatorio" style="display:none">
+    <button class="btn btn-success" onclick="gerarPDF('geral')">📄 Relatório Geral</button>
+    <button class="btn btn-success" onclick="gerarPDF('a_receber')">📄 Relatório A Receber</button>
+    <button class="btn btn-success" onclick="gerarPDF('a_entregar')">📄 Relatório A Entregar</button>
+  </div>
+
   <!-- Filtros -->
   <div class="filtro-row" id="filtroRow" style="display:none">
     <button class="filtro-btn ativo" id="btnTodos" onclick="setFiltro('todos')">Todas as vendas</button>
@@ -573,12 +580,6 @@
     <div class="loading">Conectando ao banco de dados...</div>
   </div>
 
-  <!-- Botões de ação -->
-  <div id="botoesRelatorio" style="display:none">
-    <button class="btn btn-success" onclick="gerarPDF('geral')">📄 Relatório Geral</button>
-    <button class="btn btn-success" onclick="gerarPDF('a_receber')">📄 Relatório A Receber</button>
-    <button class="btn btn-success" onclick="gerarPDF('a_entregar')">📄 Relatório A Entregar</button>
-  </div>
 
 </div>
 
