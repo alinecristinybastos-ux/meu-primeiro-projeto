@@ -821,7 +821,7 @@
   }
 
   async function editarValorViagem(id, atual) {
-    const novo = prompt('Novo valor do frete (R$):', atual);
+    const novo = prompt('Novo valor do frete por viagem (R$):', atual);
     if (novo === null) return;
     const valor = parseFloat(novo.replace(',', '.'));
     if (isNaN(valor) || valor < 0) { mostrarAlerta('Valor inválido.', true); return; }
@@ -945,11 +945,13 @@
       if (minhasViagens.length > 0) {
         let linhas = '';
         for (const v of minhasViagens) {
+          const totalViagem = (v.valor || 0) * (v.quantidade || 0);
           linhas += `
             <tr>
               <td>${escapar(v.proprietario)}</td>
               <td style="text-align:center;font-weight:700;color:#f5a623">${v.quantidade}</td>
               <td>${formatarValor(v.valor || 0)}</td>
+              <td style="font-weight:700">${formatarValor(totalViagem)}</td>
               <td>${formatarData(v.data)}</td>
               <td class="del-cell">
                 <button class="edit-btn" onclick="editarQuantidadeViagem('${v.id}', ${v.quantidade})" title="Editar quantidade">✏️</button>
@@ -964,7 +966,8 @@
               <tr>
                 <th>Proprietário do Caminhão</th>
                 <th style="text-align:center">Qtd. Viagens</th>
-                <th>Valor Frete</th>
+                <th>Valor/Viagem</th>
+                <th>Total Frete</th>
                 <th>Data</th>
                 <th></th>
               </tr>
@@ -1015,7 +1018,7 @@
         for (const prop of proprietarios) {
           const totalFrete = minhasViagens
             .filter(v => (v.proprietario || '').trim().toLowerCase() === prop.toLowerCase())
-            .reduce((a, v) => a + (v.valor || 0), 0);
+            .reduce((a, v) => a + (v.valor || 0) * (v.quantidade || 0), 0);
           const totalAbastecido = minhasAbastecimentos
             .filter(a => (a.proprietario || '').trim().toLowerCase() === prop.toLowerCase())
             .reduce((a, x) => a + (x.valor || 0), 0);
@@ -1191,7 +1194,7 @@
               </div>
               <div class="row">
                 <div>
-                  <label style="margin-top:0">Valor do Frete (R$)</label>
+                  <label style="margin-top:0">Valor do Frete por Viagem (R$)</label>
                   <input type="number" id="valorFrete_${s.id}" placeholder="0,00" min="0" step="0.01" />
                 </div>
                 <div>
