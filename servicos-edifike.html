@@ -327,19 +327,6 @@
       cursor: pointer;
     }
 
-    /* Resumo por proprietário */
-    .resumo-prop-titulo {
-      font-size: 0.80rem;
-      font-weight: 700;
-      color: #888;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      padding: 10px 0 8px;
-    }
-
-    .liquido-pos { color: #34a853; font-weight: 700; }
-    .liquido-neg { color: #ea4335; font-weight: 700; }
-
     /* Tabela de viagens */
     .viagens-section {
       border-top: 1px solid #f0f4f8;
@@ -1102,44 +1089,6 @@
         tabelaAbastecimentos = '<div class="no-viagens">Nenhum abastecimento registrado</div>';
       }
 
-      let tabelaResumo = '';
-      const proprietarios = [...new Set([
-        ...minhasViagens.map(v => v.proprietario),
-        ...minhasAbastecimentos.map(a => a.proprietario)
-      ].map(p => (p || '').trim()).filter(Boolean))];
-      if (proprietarios.length > 0) {
-        let linhas = '';
-        for (const prop of proprietarios) {
-          const totalFrete = minhasViagens
-            .filter(v => (v.proprietario || '').trim().toLowerCase() === prop.toLowerCase())
-            .reduce((a, v) => a + (v.valor || 0) * (v.quantidade || 0), 0);
-          const totalAbastecido = minhasAbastecimentos
-            .filter(a => (a.proprietario || '').trim().toLowerCase() === prop.toLowerCase())
-            .reduce((a, x) => a + (x.valor || 0), 0);
-          const liquido = totalFrete - totalAbastecido;
-          linhas += `
-            <tr>
-              <td>${escapar(prop)}</td>
-              <td>${formatarValor(totalFrete)}</td>
-              <td>${formatarValor(totalAbastecido)}</td>
-              <td class="${liquido >= 0 ? 'liquido-pos' : 'liquido-neg'}">${formatarValor(liquido)}</td>
-            </tr>`;
-        }
-        tabelaResumo = `
-          <div class="resumo-prop-titulo">📊 Resumo por Proprietário</div>
-          <table>
-            <thead>
-              <tr>
-                <th>Proprietário</th>
-                <th>Frete Total</th>
-                <th>Abastecimento</th>
-                <th>Líquido a Pagar</th>
-              </tr>
-            </thead>
-            <tbody>${linhas}</tbody>
-          </table>`;
-      }
-
       const totalPago = meusPagamentos.reduce((a, p) => a + (p.valor || 0), 0);
       const falta = Math.max(valorEfetivo - totalPago, 0);
       const statusPagamento = valorEfetivo > 0 && totalPago >= valorEfetivo
@@ -1345,8 +1294,6 @@
               </button>
             </div>
           </div>
-
-          ${tabelaResumo ? `<div class="viagens-section">${tabelaResumo}</div>` : ''}
         </div>`;
     }
 
