@@ -598,9 +598,6 @@
 
   <input type="text" id="filtroCliente" placeholder="🔍 Buscar por nome do cliente..." style="display:none;margin-bottom:12px" oninput="renderVendas()" />
 
-  <!-- Notificações de alterações recentes -->
-  <div id="notificacoesArea" style="display:none"></div>
-
   <!-- Lista de vendas -->
   <div id="listaVendas">
     <div class="loading">Conectando ao banco de dados...</div>
@@ -612,6 +609,9 @@
     <button class="btn btn-success" onclick="gerarPDF('a_receber')">📄 Relatório A Receber</button>
     <button class="btn btn-success" onclick="gerarPDF('a_entregar')">📄 Relatório A Entregar</button>
   </div>
+
+  <!-- Notificações de alterações recentes -->
+  <div id="notificacoesArea" style="display:none"></div>
 
 </div>
 
