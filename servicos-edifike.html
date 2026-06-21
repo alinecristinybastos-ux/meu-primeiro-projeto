@@ -1325,7 +1325,28 @@
     lista.innerHTML = html;
   }
 
-  function gerarRelatorioCliente(servicoId) {
+  function carregarLogoBase64() {
+    return new Promise((resolve) => {
+      const imgEl = document.querySelector('header img');
+      if (!imgEl) { resolve(null); return; }
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          canvas.getContext('2d').drawImage(img, 0, 0);
+          resolve({ dataUrl: canvas.toDataURL('image/png'), w: img.naturalWidth, h: img.naturalHeight });
+        } catch {
+          resolve(null);
+        }
+      };
+      img.onerror = () => resolve(null);
+      img.src = imgEl.src;
+    });
+  }
+
+  async function gerarRelatorioCliente(servicoId) {
     const s = servicos.find(x => x.id === servicoId);
     if (!s) return;
 
@@ -1336,15 +1357,23 @@
     const totalPago = meusPagamentos.reduce((a, p) => a + (p.valor || 0), 0);
     const saldo = Math.max(valorEfetivo - totalPago, 0);
     const nomeEmpresa = (document.querySelector('header img') || {}).alt || 'Empresa';
+    const logo = await carregarLogoBase64();
 
     const doc = new jspdf.jsPDF();
+    let textX = 14;
+    if (logo) {
+      const logoW = 22;
+      const logoH = Math.min(22, (logo.h / logo.w) * logoW);
+      doc.addImage(logo.dataUrl, 'PNG', 14, 8, logoW, logoH);
+      textX = 14 + logoW + 6;
+    }
     doc.setFontSize(14);
-    doc.text(nomeEmpresa, 14, 16);
+    doc.text(nomeEmpresa, textX, 16);
     doc.setFontSize(11);
-    doc.text('Relatório de Serviço - Cliente', 14, 23);
+    doc.text('Relatório de Serviço - Cliente', textX, 23);
 
     doc.setFontSize(10);
-    let y = 32;
+    let y = 36;
     doc.text(`Cliente: ${s.cliente || '-'}`, 14, y); y += 6;
     doc.text(`Tipo de Serviço: ${s.tipo || '-'}`, 14, y); y += 6;
     doc.text(`Data de Início: ${formatarData(s.dataInicio)}`, 14, y); y += 6;
@@ -1392,7 +1421,7 @@
     doc.save(`relatorio-cliente-${(s.cliente || 'servico').trim().replace(/\s+/g, '_')}.pdf`);
   }
 
-  function gerarRelatorioMotoristas(servicoId) {
+  async function gerarRelatorioMotoristas(servicoId) {
     const s = servicos.find(x => x.id === servicoId);
     if (!s) return;
 
@@ -1409,15 +1438,23 @@
     }
 
     const nomeEmpresa = (document.querySelector('header img') || {}).alt || 'Empresa';
+    const logo = await carregarLogoBase64();
     const doc = new jspdf.jsPDF();
+    let textX = 14;
+    if (logo) {
+      const logoW = 22;
+      const logoH = Math.min(22, (logo.h / logo.w) * logoW);
+      doc.addImage(logo.dataUrl, 'PNG', 14, 8, logoW, logoH);
+      textX = 14 + logoW + 6;
+    }
     doc.setFontSize(14);
-    doc.text(nomeEmpresa, 14, 16);
+    doc.text(nomeEmpresa, textX, 16);
     doc.setFontSize(11);
-    doc.text('Relatório de Frete - Proprietários de Caminhão', 14, 23);
+    doc.text('Relatório de Frete - Proprietários de Caminhão', textX, 23);
     doc.setFontSize(10);
-    doc.text(`Serviço: ${s.tipo || '-'}  |  Cliente: ${s.cliente || '-'}`, 14, 30);
+    doc.text(`Serviço: ${s.tipo || '-'}  |  Cliente: ${s.cliente || '-'}`, 14, 32);
 
-    let y = 38;
+    let y = 40;
 
     proprietarios.forEach(prop => {
       if (y > 250) { doc.addPage(); y = 16; }
