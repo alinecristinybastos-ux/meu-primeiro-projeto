@@ -882,6 +882,19 @@
     }
   }
 
+  async function editarValorAbastecimento(id, atual) {
+    const novo = prompt('Novo valor do abastecimento (R$):', atual);
+    if (novo === null) return;
+    const valor = parseFloat(novo.replace(',', '.'));
+    if (isNaN(valor) || valor < 0) { mostrarAlerta('Valor inválido.', true); return; }
+    try {
+      await db.collection('abastecimentos').doc(id).update({ valor });
+      mostrarAlerta('✔ Valor atualizado!');
+    } catch {
+      mostrarAlerta('Erro ao atualizar.', true);
+    }
+  }
+
   async function deletarAbastecimento(id) {
     if (!confirm('Remover este abastecimento?')) return;
     try {
@@ -988,6 +1001,7 @@
               <td>${formatarValor(a.valor || 0)}</td>
               <td>${formatarData(a.data)}</td>
               <td class="del-cell">
+                <button class="edit-btn" onclick="editarValorAbastecimento('${a.id}', ${a.valor || 0})" title="Editar valor do abastecimento">💰</button>
                 <button class="delete-btn" onclick="deletarAbastecimento('${a.id}')" title="Remover abastecimento">✕</button>
               </td>
             </tr>`;
