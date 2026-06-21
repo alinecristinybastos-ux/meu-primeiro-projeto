@@ -209,7 +209,8 @@
     .badge.andamento { background: #fff4e0; color: #f5a623; }
     .badge.parado    { background: #fce8e6; color: #ea4335; }
     .badge.concluido { background: #e6f4ea; color: #34a853; }
-    .badge.pago      { background: #e6f4ea; color: #34a853; }
+    .badge.recebido  { background: #e6f4ea; color: #34a853; }
+    .badge.parcial   { background: #e8f0fe; color: #1a73e8; }
     .badge.a_receber { background: #fff4e0; color: #c47d00; }
 
     .vendedor-tag {
@@ -235,9 +236,6 @@
       margin-top: 4px;
       font-weight: 600;
     }
-
-    .valor-pago-box { display: none; }
-    .valor-pago-box.aberto { display: block; }
 
     .falta-preview {
       font-size: 0.78rem;
@@ -293,6 +291,51 @@
     }
 
     .edit-btn:hover { color: #f5a623; }
+
+    /* Edição de serviço */
+    .edicao-servico-box { flex: 1; min-width: 0; }
+    .edicao-servico-box label:first-of-type { margin-top: 0; }
+
+    .btn-salvar-edicao {
+      margin-top: 12px;
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      background: #34a853;
+      color: white;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+
+    .btn-salvar-edicao:hover { opacity: 0.9; }
+
+    .btn-cancelar-edicao {
+      margin-top: 8px;
+      width: 100%;
+      padding: 8px;
+      border: 1.5px solid #dde3ec;
+      border-radius: 8px;
+      background: none;
+      color: #888;
+      font-weight: 600;
+      font-size: 0.82rem;
+      cursor: pointer;
+    }
+
+    /* Resumo por proprietário */
+    .resumo-prop-titulo {
+      font-size: 0.80rem;
+      font-weight: 700;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 10px 0 8px;
+    }
+
+    .liquido-pos { color: #34a853; font-weight: 700; }
+    .liquido-neg { color: #ea4335; font-weight: 700; }
 
     /* Tabela de viagens */
     .viagens-section {
@@ -466,7 +509,7 @@
     <input type="text" id="cliente" placeholder="Ex: Construtora Silva" />
 
     <label>Valor do Serviço (R$)</label>
-    <input type="number" id="valor" placeholder="0,00" min="0" step="0.01" oninput="atualizarFalta()" />
+    <input type="number" id="valor" placeholder="0,00" min="0" step="0.01" />
 
     <div class="row">
       <div>
@@ -481,18 +524,6 @@
           <option value="concluido">✅ Concluído</option>
         </select>
       </div>
-    </div>
-
-    <label>Status de Pagamento</label>
-    <select id="statusPagamento" onchange="toggleValorPago()">
-      <option value="a_receber">A Receber</option>
-      <option value="pago">Pago</option>
-    </select>
-
-    <div class="valor-pago-box aberto" id="valorPagoBox">
-      <label>Valor já pago (R$)</label>
-      <input type="number" id="valorPago" placeholder="0,00" min="0" step="0.01" oninput="atualizarFalta()" />
-      <div class="falta-preview" id="faltaPreview"></div>
     </div>
 
     <label>Observações (opcional)</label>
@@ -547,8 +578,11 @@
 
   let servicos = [];
   let viagens  = [];
+  let abastecimentos = [];
   let filtroAtual = 'todos';
   let formsAbertos = new Set();
+  let formsAbastecimentoAbertos = new Set();
+  let editandoServicoId = null;
 
   window.onload = function () {
     document.getElementById('dataInicio').value = new Date().toISOString().slice(0, 10);
@@ -559,27 +593,8 @@
       localStorage.setItem('vendedorNomeEdifike', this.value.trim());
     });
 
-    toggleValorPago();
     iniciarEscuta();
   };
-
-  function toggleValorPago() {
-    const status = document.getElementById('statusPagamento').value;
-    const box = document.getElementById('valorPagoBox');
-    box.classList.toggle('aberto', status === 'a_receber');
-    if (status === 'pago') document.getElementById('valorPago').value = '';
-    atualizarFalta();
-  }
-
-  function atualizarFalta() {
-    const status = document.getElementById('statusPagamento').value;
-    const valor = parseFloat(document.getElementById('valor').value) || 0;
-    const valorPago = parseFloat(document.getElementById('valorPago').value) || 0;
-    const preview = document.getElementById('faltaPreview');
-    if (status === 'pago' || valor === 0) { preview.textContent = ''; return; }
-    const falta = Math.max(valor - valorPago, 0);
-    preview.textContent = `Falta pagar: ${formatarValor(falta)}`;
-  }
 
   function iniciarEscuta() {
     db.collection('servicos').orderBy('timestamp', 'desc').onSnapshot(
@@ -603,6 +618,13 @@
         renderTudo();
       }
     );
+
+    db.collection('abastecimentos').orderBy('data', 'asc').onSnapshot(
+      snap => {
+        abastecimentos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderTudo();
+      }
+    );
   }
 
   function setFiltro(f) {
@@ -620,10 +642,7 @@
     const valor     = parseFloat(document.getElementById('valor').value) || 0;
     const dataInicio = document.getElementById('dataInicio').value;
     const status    = document.getElementById('status').value;
-    const statusPagamento = document.getElementById('statusPagamento').value;
     const obs       = document.getElementById('obs').value.trim();
-    let valorPago = statusPagamento === 'pago' ? valor : (parseFloat(document.getElementById('valorPago').value) || 0);
-    if (valorPago > valor) valorPago = valor;
 
     if (!vendedor) { mostrarAlerta('Informe seu nome antes de registrar.', true); return; }
     if (!tipo)    { mostrarAlerta('Informe o tipo de serviço.', true); return; }
@@ -636,8 +655,8 @@
 
     try {
       await db.collection('servicos').add({
-        vendedor, tipo, cliente, valor, dataInicio, status,
-        statusPagamento, valorPago, obs,
+        vendedor, tipo, cliente, valor, dataInicio, status, obs,
+        pagamentos: [],
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
       });
 
@@ -645,10 +664,7 @@
       document.getElementById('cliente').value = '';
       document.getElementById('valor').value   = '';
       document.getElementById('status').value  = 'andamento';
-      document.getElementById('statusPagamento').value = 'a_receber';
-      document.getElementById('valorPago').value = '';
       document.getElementById('obs').value = '';
-      toggleValorPago();
       mostrarAlerta('✔ Serviço registrado!');
     } catch {
       mostrarAlerta('Erro ao salvar. Verifique a conexão.', true);
@@ -667,24 +683,102 @@
   }
 
   async function deletarServico(id) {
-    if (!confirm('Remover este serviço e todas as viagens associadas?')) return;
+    if (!confirm('Remover este serviço e todas as viagens/abastecimentos associados?')) return;
     try {
-      // Remove viagens do serviço
-      const viagBatch = db.batch();
+      const batch = db.batch();
       viagens.filter(v => v.servicoId === id).forEach(v => {
-        viagBatch.delete(db.collection('viagens').doc(v.id));
+        batch.delete(db.collection('viagens').doc(v.id));
       });
-      await viagBatch.commit();
+      abastecimentos.filter(a => a.servicoId === id).forEach(a => {
+        batch.delete(db.collection('abastecimentos').doc(a.id));
+      });
+      await batch.commit();
       await db.collection('servicos').doc(id).delete();
     } catch {
       mostrarAlerta('Erro ao remover.', true);
     }
   }
 
+  function iniciarEdicaoServico(id) {
+    editandoServicoId = id;
+    renderTudo();
+  }
+
+  function cancelarEdicaoServico() {
+    editandoServicoId = null;
+    renderTudo();
+  }
+
+  async function salvarEdicaoServico(id) {
+    const tipo      = document.getElementById(`tipoEdicao_${id}`).value.trim();
+    const cliente   = document.getElementById(`clienteEdicao_${id}`).value.trim();
+    const valor     = parseFloat(document.getElementById(`valorEdicao_${id}`).value) || 0;
+    const dataInicio = document.getElementById(`dataInicioEdicao_${id}`).value;
+    const status    = document.getElementById(`statusEdicao_${id}`).value;
+    const obs       = document.getElementById(`obsEdicao_${id}`).value.trim();
+
+    if (!tipo)    { mostrarAlerta('Informe o tipo de serviço.', true); return; }
+    if (!cliente) { mostrarAlerta('Informe o cliente.', true); return; }
+    if (!dataInicio) { mostrarAlerta('Informe a data de início.', true); return; }
+
+    try {
+      await db.collection('servicos').doc(id).update({ tipo, cliente, valor, dataInicio, status, obs });
+      editandoServicoId = null;
+      mostrarAlerta('✔ Serviço atualizado!');
+    } catch {
+      mostrarAlerta('Erro ao atualizar serviço.', true);
+    }
+  }
+
+  async function adicionarPagamento(servicoId) {
+    const valorEl = document.getElementById(`pagValor_${servicoId}`);
+    const dataEl  = document.getElementById(`pagData_${servicoId}`);
+    const valor = parseFloat(valorEl.value) || 0;
+    const data  = dataEl.value;
+
+    if (valor <= 0) { mostrarAlerta('Informe um valor de pagamento válido.', true); return; }
+    if (!data) { mostrarAlerta('Informe a data do pagamento.', true); return; }
+
+    const servico = servicos.find(s => s.id === servicoId);
+    if (!servico) return;
+
+    const novoPagamento = { id: 'p_' + Date.now() + Math.random().toString(36).slice(2, 7), valor, data };
+    const pagamentos = [...(servico.pagamentos || []), novoPagamento];
+
+    const btn = document.getElementById(`btnSalvarPagamento_${servicoId}`);
+    btn.disabled = true;
+    btn.textContent = 'Salvando...';
+
+    try {
+      await db.collection('servicos').doc(servicoId).update({ pagamentos });
+      valorEl.value = '';
+      dataEl.value  = '';
+      mostrarAlerta('✔ Pagamento registrado!');
+    } catch {
+      mostrarAlerta('Erro ao salvar pagamento.', true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Salvar Pagamento';
+    }
+  }
+
+  async function deletarPagamento(servicoId, pagamentoId) {
+    if (!confirm('Remover este pagamento?')) return;
+    const servico = servicos.find(s => s.id === servicoId);
+    if (!servico) return;
+    const pagamentos = (servico.pagamentos || []).filter(p => p.id !== pagamentoId);
+    try {
+      await db.collection('servicos').doc(servicoId).update({ pagamentos });
+    } catch {
+      mostrarAlerta('Erro ao remover pagamento.', true);
+    }
+  }
+
   async function adicionarViagem(servicoId) {
-    const prop = document.getElementById(`prop_${servicoId}`).value.trim();
-    const qtd  = parseInt(document.getElementById(`qtd_${servicoId}`).value) || 0;
-    const data = document.getElementById(`data_${servicoId}`).value;
+    const prop  = document.getElementById(`prop_${servicoId}`).value.trim();
+    const qtd   = parseInt(document.getElementById(`qtd_${servicoId}`).value) || 0;
+    const valor = parseFloat(document.getElementById(`valorFrete_${servicoId}`).value) || 0;
+    const data  = document.getElementById(`data_${servicoId}`).value;
 
     if (!prop) { mostrarAlerta('Informe o nome do proprietário.', true); return; }
     if (qtd < 1) { mostrarAlerta('Informe a quantidade de viagens.', true); return; }
@@ -696,12 +790,13 @@
 
     try {
       await db.collection('viagens').add({
-        servicoId, proprietario: prop, quantidade: qtd, data,
+        servicoId, proprietario: prop, quantidade: qtd, valor, data,
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
       });
 
       document.getElementById(`prop_${servicoId}`).value = '';
       document.getElementById(`qtd_${servicoId}`).value  = '';
+      document.getElementById(`valorFrete_${servicoId}`).value = '';
       document.getElementById(`data_${servicoId}`).value = '';
       mostrarAlerta('✔ Viagem registrada!');
     } catch {
@@ -725,6 +820,19 @@
     }
   }
 
+  async function editarValorViagem(id, atual) {
+    const novo = prompt('Novo valor do frete (R$):', atual);
+    if (novo === null) return;
+    const valor = parseFloat(novo.replace(',', '.'));
+    if (isNaN(valor) || valor < 0) { mostrarAlerta('Valor inválido.', true); return; }
+    try {
+      await db.collection('viagens').doc(id).update({ valor });
+      mostrarAlerta('✔ Valor do frete atualizado!');
+    } catch {
+      mostrarAlerta('Erro ao atualizar.', true);
+    }
+  }
+
   async function deletarViagem(id) {
     if (!confirm('Remover esta viagem?')) return;
     try {
@@ -739,6 +847,55 @@
       formsAbertos.delete(servicoId);
     } else {
       formsAbertos.add(servicoId);
+    }
+    renderTudo();
+  }
+
+  async function adicionarAbastecimento(servicoId) {
+    const prop  = document.getElementById(`abProp_${servicoId}`).value.trim();
+    const valor = parseFloat(document.getElementById(`abValor_${servicoId}`).value) || 0;
+    const data  = document.getElementById(`abData_${servicoId}`).value;
+
+    if (!prop) { mostrarAlerta('Informe o nome do proprietário.', true); return; }
+    if (valor <= 0) { mostrarAlerta('Informe o valor do abastecimento.', true); return; }
+    if (!data)  { mostrarAlerta('Informe a data.', true); return; }
+
+    const btn = document.getElementById(`btnSalvarAbastecimento_${servicoId}`);
+    btn.disabled = true;
+    btn.textContent = 'Salvando...';
+
+    try {
+      await db.collection('abastecimentos').add({
+        servicoId, proprietario: prop, valor, data,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      document.getElementById(`abProp_${servicoId}`).value  = '';
+      document.getElementById(`abValor_${servicoId}`).value = '';
+      document.getElementById(`abData_${servicoId}`).value  = '';
+      mostrarAlerta('✔ Abastecimento registrado!');
+    } catch {
+      mostrarAlerta('Erro ao salvar abastecimento.', true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Salvar Abastecimento';
+    }
+  }
+
+  async function deletarAbastecimento(id) {
+    if (!confirm('Remover este abastecimento?')) return;
+    try {
+      await db.collection('abastecimentos').doc(id).delete();
+    } catch {
+      mostrarAlerta('Erro ao remover abastecimento.', true);
+    }
+  }
+
+  function toggleFormAbastecimento(servicoId) {
+    if (formsAbastecimentoAbertos.has(servicoId)) {
+      formsAbastecimentoAbertos.delete(servicoId);
+    } else {
+      formsAbastecimentoAbertos.add(servicoId);
     }
     renderTudo();
   }
@@ -772,13 +929,17 @@
     }
 
     const statusLabel = { andamento: '🔄 Em Andamento', parado: '⛔ Parado', concluido: '✅ Concluído' };
+    const statusPagLabel = { recebido: '💰 Recebido', parcial: '🔶 Parcial', a_receber: '⏳ A Receber' };
     const hoje = new Date().toISOString().slice(0, 10);
 
     let html = '';
     for (const s of filtrados) {
       const minhasViagens = viagens.filter(v => v.servicoId === s.id);
+      const minhasAbastecimentos = abastecimentos.filter(a => a.servicoId === s.id);
+      const meusPagamentos = s.pagamentos || [];
       const totalViagens  = minhasViagens.reduce((a, v) => a + (v.quantidade || 0), 0);
       const formAberto    = formsAbertos.has(s.id);
+      const formAbastecimentoAberto = formsAbastecimentoAbertos.has(s.id);
 
       let tabelaViagens = '';
       if (minhasViagens.length > 0) {
@@ -788,9 +949,11 @@
             <tr>
               <td>${escapar(v.proprietario)}</td>
               <td style="text-align:center;font-weight:700;color:#f5a623">${v.quantidade}</td>
+              <td>${formatarValor(v.valor || 0)}</td>
               <td>${formatarData(v.data)}</td>
               <td class="del-cell">
                 <button class="edit-btn" onclick="editarQuantidadeViagem('${v.id}', ${v.quantidade})" title="Editar quantidade">✏️</button>
+                <button class="edit-btn" onclick="editarValorViagem('${v.id}', ${v.valor || 0})" title="Editar valor do frete">💰</button>
                 <button class="delete-btn" onclick="deletarViagem('${v.id}')" title="Remover viagem">✕</button>
               </td>
             </tr>`;
@@ -801,6 +964,7 @@
               <tr>
                 <th>Proprietário do Caminhão</th>
                 <th style="text-align:center">Qtd. Viagens</th>
+                <th>Valor Frete</th>
                 <th>Data</th>
                 <th></th>
               </tr>
@@ -811,9 +975,142 @@
         tabelaViagens = '<div class="no-viagens">Nenhuma viagem registrada</div>';
       }
 
-      const statusPagamento = s.statusPagamento || 'a_receber';
-      const valorPago = s.valorPago || 0;
-      const falta = Math.max((s.valor || 0) - valorPago, 0);
+      let tabelaAbastecimentos = '';
+      if (minhasAbastecimentos.length > 0) {
+        let linhas = '';
+        for (const a of minhasAbastecimentos) {
+          linhas += `
+            <tr>
+              <td>${escapar(a.proprietario)}</td>
+              <td>${formatarValor(a.valor || 0)}</td>
+              <td>${formatarData(a.data)}</td>
+              <td class="del-cell">
+                <button class="delete-btn" onclick="deletarAbastecimento('${a.id}')" title="Remover abastecimento">✕</button>
+              </td>
+            </tr>`;
+        }
+        tabelaAbastecimentos = `
+          <table>
+            <thead>
+              <tr>
+                <th>Proprietário do Caminhão</th>
+                <th>Valor Abastecido</th>
+                <th>Data</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>${linhas}</tbody>
+          </table>`;
+      } else {
+        tabelaAbastecimentos = '<div class="no-viagens">Nenhum abastecimento registrado</div>';
+      }
+
+      let tabelaResumo = '';
+      const proprietarios = [...new Set([
+        ...minhasViagens.map(v => v.proprietario),
+        ...minhasAbastecimentos.map(a => a.proprietario)
+      ].map(p => (p || '').trim()).filter(Boolean))];
+      if (proprietarios.length > 0) {
+        let linhas = '';
+        for (const prop of proprietarios) {
+          const totalFrete = minhasViagens
+            .filter(v => (v.proprietario || '').trim().toLowerCase() === prop.toLowerCase())
+            .reduce((a, v) => a + (v.valor || 0), 0);
+          const totalAbastecido = minhasAbastecimentos
+            .filter(a => (a.proprietario || '').trim().toLowerCase() === prop.toLowerCase())
+            .reduce((a, x) => a + (x.valor || 0), 0);
+          const liquido = totalFrete - totalAbastecido;
+          linhas += `
+            <tr>
+              <td>${escapar(prop)}</td>
+              <td>${formatarValor(totalFrete)}</td>
+              <td>${formatarValor(totalAbastecido)}</td>
+              <td class="${liquido >= 0 ? 'liquido-pos' : 'liquido-neg'}">${formatarValor(liquido)}</td>
+            </tr>`;
+        }
+        tabelaResumo = `
+          <div class="resumo-prop-titulo">📊 Resumo por Proprietário</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Proprietário</th>
+                <th>Frete Total</th>
+                <th>Abastecimento</th>
+                <th>Líquido a Pagar</th>
+              </tr>
+            </thead>
+            <tbody>${linhas}</tbody>
+          </table>`;
+      }
+
+      const totalPago = meusPagamentos.reduce((a, p) => a + (p.valor || 0), 0);
+      const falta = Math.max((s.valor || 0) - totalPago, 0);
+      const statusPagamento = (s.valor || 0) > 0 && totalPago >= s.valor
+        ? 'recebido'
+        : (totalPago > 0 ? 'parcial' : 'a_receber');
+
+      let tabelaPagamentos = '';
+      if (meusPagamentos.length > 0) {
+        let linhas = '';
+        for (const p of meusPagamentos) {
+          linhas += `
+            <tr>
+              <td>${formatarValor(p.valor)}</td>
+              <td>${formatarData(p.data)}</td>
+              <td class="del-cell">
+                <button class="delete-btn" onclick="deletarPagamento('${s.id}', '${p.id}')" title="Remover pagamento">✕</button>
+              </td>
+            </tr>`;
+        }
+        tabelaPagamentos = `
+          <table>
+            <thead>
+              <tr>
+                <th>Valor Recebido</th>
+                <th>Data</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>${linhas}</tbody>
+          </table>`;
+      } else {
+        tabelaPagamentos = '<div class="no-viagens">Nenhum pagamento registrado</div>';
+      }
+
+      if (s.id === editandoServicoId) {
+        html += `
+          <div class="srv-card ${s.status || ''}">
+            <div class="srv-header">
+              <div class="edicao-servico-box">
+                <label>Tipo de Serviço</label>
+                <input type="text" id="tipoEdicao_${s.id}" value="${escaparAtributo(s.tipo)}" />
+                <label>Cliente</label>
+                <input type="text" id="clienteEdicao_${s.id}" value="${escaparAtributo(s.cliente)}" />
+                <div class="row">
+                  <div>
+                    <label>Valor do Serviço (R$)</label>
+                    <input type="number" id="valorEdicao_${s.id}" value="${s.valor || ''}" min="0" step="0.01" />
+                  </div>
+                  <div>
+                    <label>Data de Início</label>
+                    <input type="date" id="dataInicioEdicao_${s.id}" value="${s.dataInicio || ''}" />
+                  </div>
+                </div>
+                <label>Status</label>
+                <select id="statusEdicao_${s.id}">
+                  <option value="andamento" ${s.status === 'andamento' ? 'selected' : ''}>🔄 Em Andamento</option>
+                  <option value="parado"    ${s.status === 'parado'    ? 'selected' : ''}>⛔ Parado</option>
+                  <option value="concluido" ${s.status === 'concluido' ? 'selected' : ''}>✅ Concluído</option>
+                </select>
+                <label>Observações</label>
+                <textarea id="obsEdicao_${s.id}">${escapar(s.obs || '')}</textarea>
+                <button class="btn-salvar-edicao" onclick="salvarEdicaoServico('${s.id}')">💾 Salvar Alterações</button>
+                <button class="btn-cancelar-edicao" onclick="cancelarEdicaoServico()">Cancelar</button>
+              </div>
+            </div>
+          </div>`;
+        continue;
+      }
 
       html += `
         <div class="srv-card ${s.status || ''}">
@@ -826,9 +1123,9 @@
               ${s.vendedor ? `<span class="vendedor-tag">🧑‍💼 ${escapar(s.vendedor)}</span>` : ''}
               ${s.obs ? `<div class="srv-cliente" style="color:#888">💬 ${escapar(s.obs)}</div>` : ''}
               <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
-                <span class="badge ${statusPagamento}">${statusPagamento === 'pago' ? '💰 Pago' : '⏳ A Receber'}</span>
+                <span class="badge ${statusPagamento}">${statusPagLabel[statusPagamento]}</span>
               </div>
-              ${statusPagamento === 'a_receber' && falta > 0 ? `<div class="falta-texto">Falta pagar: ${formatarValor(falta)}</div>` : ''}
+              ${falta > 0 ? `<div class="falta-texto">Falta pagar: ${formatarValor(falta)}</div>` : ''}
             </div>
             <div class="srv-right">
               <span class="badge ${s.status || ''}">${statusLabel[s.status] || s.status}</span>
@@ -837,7 +1134,36 @@
                 <option value="parado"    ${s.status === 'parado'    ? 'selected' : ''}>⛔ Parado</option>
                 <option value="concluido" ${s.status === 'concluido' ? 'selected' : ''}>✅ Concluído</option>
               </select>
-              <button class="delete-btn" onclick="deletarServico('${s.id}')" title="Remover serviço" style="margin-top:4px">✕</button>
+              <div>
+                <button class="edit-btn" onclick="iniciarEdicaoServico('${s.id}')" title="Editar serviço">✏️</button>
+                <button class="delete-btn" onclick="deletarServico('${s.id}')" title="Remover serviço">✕</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="viagens-section">
+            <div class="viagens-titulo">💰 Pagamentos Recebidos</div>
+
+            ${tabelaPagamentos}
+
+            <button class="btn-toggle-viagem" onclick="toggleForm('pag_${s.id}')">
+              ${formsAbertos.has('pag_' + s.id) ? '▲ Cancelar' : '➕ Adicionar pagamento'}
+            </button>
+
+            <div class="add-viagem-form ${formsAbertos.has('pag_' + s.id) ? 'aberto' : ''}">
+              <div class="row">
+                <div>
+                  <label style="margin-top:0">Valor Recebido (R$)</label>
+                  <input type="number" id="pagValor_${s.id}" placeholder="0,00" min="0" step="0.01" />
+                </div>
+                <div>
+                  <label style="margin-top:0">Data</label>
+                  <input type="date" id="pagData_${s.id}" value="${hoje}" />
+                </div>
+              </div>
+              <button class="btn-add-viagem" id="btnSalvarPagamento_${s.id}" onclick="adicionarPagamento('${s.id}')">
+                Salvar Pagamento
+              </button>
             </div>
           </div>
 
@@ -862,6 +1188,12 @@
                   <label style="margin-top:0">Qtd. Viagens</label>
                   <input type="number" id="qtd_${s.id}" placeholder="0" min="1" />
                 </div>
+              </div>
+              <div class="row">
+                <div>
+                  <label style="margin-top:0">Valor do Frete (R$)</label>
+                  <input type="number" id="valorFrete_${s.id}" placeholder="0,00" min="0" step="0.01" />
+                </div>
                 <div>
                   <label style="margin-top:0">Data</label>
                   <input type="date" id="data_${s.id}" value="${hoje}" />
@@ -872,6 +1204,38 @@
               </button>
             </div>
           </div>
+
+          <div class="viagens-section">
+            <div class="viagens-titulo">⛽ Abastecimento</div>
+
+            ${tabelaAbastecimentos}
+
+            <button class="btn-toggle-viagem" onclick="toggleFormAbastecimento('${s.id}')">
+              ${formAbastecimentoAberto ? '▲ Cancelar' : '➕ Adicionar abastecimento'}
+            </button>
+
+            <div class="add-viagem-form ${formAbastecimentoAberto ? 'aberto' : ''}">
+              <div class="row">
+                <div>
+                  <label style="margin-top:0">Proprietário do Caminhão</label>
+                  <input type="text" id="abProp_${s.id}" placeholder="Nome do proprietário" />
+                </div>
+                <div>
+                  <label style="margin-top:0">Valor Abastecido (R$)</label>
+                  <input type="number" id="abValor_${s.id}" placeholder="0,00" min="0" step="0.01" />
+                </div>
+                <div>
+                  <label style="margin-top:0">Data</label>
+                  <input type="date" id="abData_${s.id}" value="${hoje}" />
+                </div>
+              </div>
+              <button class="btn-add-viagem" id="btnSalvarAbastecimento_${s.id}" onclick="adicionarAbastecimento('${s.id}')">
+                Salvar Abastecimento
+              </button>
+            </div>
+          </div>
+
+          ${tabelaResumo ? `<div class="viagens-section">${tabelaResumo}</div>` : ''}
         </div>`;
     }
 
@@ -890,6 +1254,10 @@
 
   function escapar(str) {
     return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function escaparAtributo(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
   function mostrarAlerta(msg, erro = false) {
