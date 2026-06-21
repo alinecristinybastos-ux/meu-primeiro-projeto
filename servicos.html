@@ -1199,11 +1199,6 @@
             </div>
           </div>
 
-          <div class="viagens-section" style="display:flex;gap:8px;flex-wrap:wrap">
-            <button class="btn-relatorio" onclick="gerarRelatorioCliente('${s.id}')">📄 Relatório Cliente (PDF)</button>
-            <button class="btn-relatorio motoristas" onclick="gerarRelatorioMotoristas('${s.id}')">📄 Relatório Motoristas (PDF)</button>
-          </div>
-
           <div class="viagens-section">
             <div class="viagens-titulo">💰 Pagamentos Recebidos</div>
 
@@ -1296,6 +1291,11 @@
                 Salvar Abastecimento
               </button>
             </div>
+          </div>
+
+          <div class="viagens-section" style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn-relatorio" onclick="gerarRelatorioCliente('${s.id}')">📄 Relatório Cliente (PDF)</button>
+            <button class="btn-relatorio motoristas" onclick="gerarRelatorioMotoristas('${s.id}')">📄 Relatório Motoristas (PDF)</button>
           </div>
         </div>`;
     }
