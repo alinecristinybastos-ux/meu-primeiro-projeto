@@ -496,6 +496,7 @@
 <header>
   <img src="logo-edifike.jpeg" alt="Edifique Terraplanagem e Construções" />
   <div class="app-title">Controle de<br>Serviços</div>
+  <a href="alteracoes.html" title="Alterações Recentes" style="margin-left:auto;text-decoration:none;background:#888;color:white;padding:6px 12px;border-radius:8px;font-size:0.8rem;font-weight:600;white-space:nowrap;">🔔 Alterações</a>
   <div class="status-dot" id="statusDot" title="Conectando..." style="margin-left:8px"></div>
 </header>
 
@@ -717,8 +718,15 @@
   }
 
   async function atualizarStatus(id, novoStatus) {
+    const servico = servicos.find(s => s.id === id);
+    const quem = (document.getElementById('vendedorNome').value || 'Alguém').trim();
+    const statusTxt = { andamento: 'Em Andamento', parado: 'Parado', concluido: 'Concluído' }[novoStatus] || novoStatus;
+    const acao = `${quem} atualizou o status do serviço de ${servico ? servico.cliente : ''} para "${statusTxt}"`;
     try {
-      await db.collection('servicos').doc(id).update({ status: novoStatus });
+      await db.collection('servicos').doc(id).update({
+        status: novoStatus,
+        historico: firebase.firestore.FieldValue.arrayUnion({ acao, quando: new Date() })
+      });
     } catch {
       mostrarAlerta('Erro ao atualizar status.', true);
     }
@@ -729,8 +737,14 @@
       ? 'Confirma que este serviço foi lançado no sistema?'
       : 'Confirma que deseja desmarcar este serviço como lançado no sistema?';
     if (!confirm(msg)) return;
+    const servico = servicos.find(s => s.id === id);
+    const quem = (document.getElementById('vendedorNome').value || 'Alguém').trim();
+    const acao = `${quem} marcou o serviço de ${servico ? servico.cliente : ''} como ${novoValor ? 'lançado no sistema' : 'não lançado'}`;
     try {
-      await db.collection('servicos').doc(id).update({ lancado: novoValor });
+      await db.collection('servicos').doc(id).update({
+        lancado: novoValor,
+        historico: firebase.firestore.FieldValue.arrayUnion({ acao, quando: new Date() })
+      });
     } catch {
       mostrarAlerta('Erro ao atualizar.', true);
     }
@@ -789,8 +803,14 @@
     if (!cliente) { mostrarAlerta('Informe o cliente.', true); return; }
     if (!dataInicio) { mostrarAlerta('Informe a data de início.', true); return; }
 
+    const quem = (document.getElementById('vendedorNome').value || 'Alguém').trim();
+    const acao = `${quem} corrigiu os dados do serviço de ${cliente}`;
+
     try {
-      await db.collection('servicos').doc(id).update({ tipo, cliente, tipoCobranca, valor, valorViagem, dataInicio, status, obs });
+      await db.collection('servicos').doc(id).update({
+        tipo, cliente, tipoCobranca, valor, valorViagem, dataInicio, status, obs,
+        historico: firebase.firestore.FieldValue.arrayUnion({ acao, quando: new Date() })
+      });
       editandoServicoId = null;
       mostrarAlerta('✔ Serviço atualizado!');
     } catch {
@@ -813,12 +833,18 @@
     const novoPagamento = { id: 'p_' + Date.now() + Math.random().toString(36).slice(2, 7), valor, data };
     const pagamentos = [...(servico.pagamentos || []), novoPagamento];
 
+    const quem = (document.getElementById('vendedorNome').value || 'Alguém').trim();
+    const acao = `${quem} registrou um pagamento de ${formatarValor(valor)} para o serviço de ${servico.cliente}`;
+
     const btn = document.getElementById(`btnSalvarPagamento_${servicoId}`);
     btn.disabled = true;
     btn.textContent = 'Salvando...';
 
     try {
-      await db.collection('servicos').doc(servicoId).update({ pagamentos });
+      await db.collection('servicos').doc(servicoId).update({
+        pagamentos,
+        historico: firebase.firestore.FieldValue.arrayUnion({ acao, quando: new Date() })
+      });
       valorEl.value = '';
       dataEl.value  = '';
       mostrarAlerta('✔ Pagamento registrado!');
