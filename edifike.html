@@ -413,36 +413,6 @@
       margin-top: 4px;
     }
 
-    .notificacoes-box {
-      background: #fff8e1;
-      border: 1.5px solid #f5a623;
-      border-radius: 10px;
-      padding: 10px 14px;
-      margin-bottom: 14px;
-    }
-
-    .notificacoes-titulo {
-      font-weight: 700;
-      font-size: 0.85rem;
-      color: #8a5d00;
-      margin-bottom: 6px;
-    }
-
-    .notificacao-item {
-      font-size: 0.8rem;
-      color: #555;
-      padding: 4px 0;
-      border-top: 1px solid #f0dca3;
-    }
-
-    .notificacao-item:first-of-type { border-top: none; }
-
-    .notificacao-item b { color: #333; }
-
-    .notificacao-tempo {
-      color: #999;
-      font-size: 0.72rem;
-    }
 
     .edit-venda-btn {
       background: none;
@@ -505,6 +475,7 @@
 <header>
   <img src="logo-edifike.jpeg" alt="Edifique Terraplanagem e Construções" />
   <div class="app-title">Controle de<br>Vendas</div>
+  <a href="alteracoes.html" title="Alterações Recentes" style="margin-left:auto;text-decoration:none;background:#888;color:white;padding:6px 12px;border-radius:8px;font-size:0.8rem;font-weight:600;white-space:nowrap;">🔔 Alterações</a>
   <div class="status-dot" id="statusDot" title="Conectando..." style="margin-left:8px"></div>
 </header>
 
@@ -608,9 +579,6 @@
     <button class="btn btn-success" onclick="gerarPDF('a_receber')">📄 Relatório A Receber</button>
     <button class="btn btn-success" onclick="gerarPDF('a_entregar')">📄 Relatório A Entregar</button>
   </div>
-
-  <!-- Notificações de alterações recentes -->
-  <div id="notificacoesArea" style="display:none"></div>
 
 </div>
 
@@ -858,48 +826,6 @@
     }
   }
 
-  function tempoAtras(data) {
-    const diffMs = Date.now() - data.getTime();
-    const min = Math.floor(diffMs / 60000);
-    if (min < 1) return 'agora mesmo';
-    if (min < 60) return `há ${min} min`;
-    const h = Math.floor(min / 60);
-    if (h < 24) return `há ${h}h`;
-    const d = Math.floor(h / 24);
-    return `há ${d} dia(s)`;
-  }
-
-  function renderNotificacoes() {
-    const box = document.getElementById('notificacoesArea');
-    const limite = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    const eventos = [];
-    for (const v of todasVendas) {
-      if (!v.historico || !v.historico.length) continue;
-      for (const h of v.historico) {
-        const quando = h.quando && h.quando.toDate ? h.quando.toDate() : null;
-        if (quando && quando.getTime() >= limite) eventos.push({ acao: h.acao, quando });
-      }
-    }
-    eventos.sort((a, b) => b.quando - a.quando);
-
-    if (eventos.length === 0) {
-      box.style.display = 'none';
-      box.innerHTML = '';
-      return;
-    }
-
-    box.style.display = 'block';
-    box.innerHTML = `
-      <div class="notificacoes-box">
-        <div class="notificacoes-titulo">🔔 Alterações Recentes</div>
-        ${eventos.map(e => `
-          <div class="notificacao-item">
-            ${escapar(e.acao)} <span class="notificacao-tempo">(${tempoAtras(e.quando)})</span>
-          </div>
-        `).join('')}
-      </div>`;
-  }
-
   function valorPagoEfetivo(v) {
     return v.statusPagamento === 'pago' ? (v.valor || 0) : (v.valorPago || 0);
   }
@@ -1001,8 +927,6 @@
     const filtroCliente = document.getElementById('filtroCliente');
     const meuNome = document.getElementById('vendedorNome').value.trim().toLowerCase();
     const vendas = vendasFiltradas();
-
-    renderNotificacoes();
 
     if (todasVendas.length === 0) {
       lista.innerHTML = '<div class="empty"><span>📋</span>Nenhuma venda registrada ainda.</div>';
