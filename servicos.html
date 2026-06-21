@@ -215,6 +215,8 @@
     .badge.recebido  { background: #e6f4ea; color: #34a853; }
     .badge.parcial   { background: #e8f0fe; color: #1a73e8; }
     .badge.a_receber { background: #fff4e0; color: #c47d00; }
+    .badge.lancado    { background: #e6f4ea; color: #34a853; cursor: pointer; border: none; }
+    .badge.nao-lancado { background: #f0f4f8; color: #888; cursor: pointer; border: none; }
 
     .vendedor-tag {
       font-size: 0.72rem;
@@ -693,7 +695,7 @@
     try {
       await db.collection('servicos').add({
         vendedor, tipo, cliente, tipoCobranca, valor, valorViagem, dataInicio, status, obs,
-        pagamentos: [],
+        pagamentos: [], lancado: false,
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
       });
 
@@ -719,6 +721,18 @@
       await db.collection('servicos').doc(id).update({ status: novoStatus });
     } catch {
       mostrarAlerta('Erro ao atualizar status.', true);
+    }
+  }
+
+  async function toggleLancado(id, novoValor) {
+    const msg = novoValor
+      ? 'Confirma que este serviço foi lançado no sistema?'
+      : 'Confirma que deseja desmarcar este serviço como lançado no sistema?';
+    if (!confirm(msg)) return;
+    try {
+      await db.collection('servicos').doc(id).update({ lancado: novoValor });
+    } catch {
+      mostrarAlerta('Erro ao atualizar.', true);
     }
   }
 
@@ -1097,6 +1111,7 @@
       const statusPagamento = valorEfetivo > 0 && totalPago >= valorEfetivo
         ? 'recebido'
         : (totalPago > 0 ? 'parcial' : 'a_receber');
+      const lancado = !!s.lancado;
 
       let tabelaPagamentos = '';
       if (meusPagamentos.length > 0) {
@@ -1182,6 +1197,7 @@
               ${s.obs ? `<div class="srv-cliente" style="color:#888">💬 ${escapar(s.obs)}</div>` : ''}
               <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
                 <span class="badge ${statusPagamento}">${statusPagLabel[statusPagamento]}</span>
+                <span class="badge ${lancado ? 'lancado' : 'nao-lancado'}" onclick="toggleLancado('${s.id}', ${!lancado})">${lancado ? '✔ Lançado no Sistema' : '○ Não Lançado'}</span>
               </div>
               ${falta > 0 ? `<div class="falta-texto">Falta pagar: ${formatarValor(falta)}</div>` : ''}
             </div>
