@@ -144,6 +144,7 @@
     .val.andamento { color: #f5a623; }
     .val.parado    { color: #ea4335; }
     .val.concluido { color: #34a853; }
+    .val.financeiro { color: #f5a623; }
 
     /* Filtros */
     .filtro-row {
@@ -580,6 +581,18 @@
     </div>
   </div>
 
+  <!-- Resumo Financeiro -->
+  <div class="summary" id="summaryFinanceiro" style="display:none">
+    <div class="summary-box">
+      <div class="val financeiro" id="totalRecebidoServicos">R$ 0</div>
+      <div class="lbl">Valor Total Recebido</div>
+    </div>
+    <div class="summary-box">
+      <div class="val financeiro" id="totalAReceberServicos">R$ 0</div>
+      <div class="lbl">Valor Total a Receber</div>
+    </div>
+  </div>
+
   <!-- Filtros -->
   <div class="filtro-row" id="filtroRow" style="display:none">
     <button class="filtro-btn ativo" id="btnTodos"     onclick="setFiltro('todos')">Todos</button>
@@ -965,23 +978,38 @@
   }
 
   function renderTudo() {
-    const lista     = document.getElementById('listaServicos');
-    const summary   = document.getElementById('summaryArea');
-    const filtroRow = document.getElementById('filtroRow');
+    const lista              = document.getElementById('listaServicos');
+    const summary            = document.getElementById('summaryArea');
+    const summaryFinanceiro  = document.getElementById('summaryFinanceiro');
+    const filtroRow          = document.getElementById('filtroRow');
 
     if (servicos.length === 0) {
       lista.innerHTML = '<div class="empty"><span>🚛</span>Nenhum serviço registrado ainda.</div>';
-      summary.style.display   = 'none';
-      filtroRow.style.display = 'none';
+      summary.style.display           = 'none';
+      summaryFinanceiro.style.display = 'none';
+      filtroRow.style.display         = 'none';
       return;
     }
 
-    summary.style.display   = 'flex';
-    filtroRow.style.display = 'flex';
+    summary.style.display           = 'flex';
+    summaryFinanceiro.style.display = 'flex';
+    filtroRow.style.display         = 'flex';
 
     document.getElementById('cntAndamento').textContent = servicos.filter(s => s.status === 'andamento').length;
     document.getElementById('cntParado').textContent    = servicos.filter(s => s.status === 'parado').length;
     document.getElementById('cntConcluido').textContent = servicos.filter(s => s.status === 'concluido').length;
+
+    let totalRecebidoGeral = 0, totalAReceberGeral = 0;
+    servicos.forEach(s => {
+      const vS = viagens.filter(v => v.servicoId === s.id);
+      const totalViagensS = vS.reduce((a, v) => a + (v.quantidade || 0), 0);
+      const valorEfetivoS = s.tipoCobranca === 'viagem' ? (s.valorViagem || 0) * totalViagensS : (s.valor || 0);
+      const totalPagoS = (s.pagamentos || []).reduce((a, p) => a + (p.valor || 0), 0);
+      totalRecebidoGeral += totalPagoS;
+      totalAReceberGeral += Math.max(valorEfetivoS - totalPagoS, 0);
+    });
+    document.getElementById('totalRecebidoServicos').textContent = formatarValor(totalRecebidoGeral);
+    document.getElementById('totalAReceberServicos').textContent = formatarValor(totalAReceberGeral);
 
     const filtrados = filtroAtual === 'todos'
       ? servicos
