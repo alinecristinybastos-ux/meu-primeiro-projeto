@@ -1360,20 +1360,20 @@
     const logo = await carregarLogoBase64();
 
     const doc = new jspdf.jsPDF();
-    let textX = 14;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let y;
     if (logo) {
-      const logoW = 22;
-      const logoH = Math.min(22, (logo.h / logo.w) * logoW);
-      doc.addImage(logo.dataUrl, 'PNG', 14, 8, logoW, logoH);
-      textX = 14 + logoW + 6;
+      const logoW = 50;
+      const logoH = (logo.h / logo.w) * logoW;
+      doc.addImage(logo.dataUrl, 'PNG', (pageWidth - logoW) / 2, 10, logoW, logoH);
+      y = 10 + logoH + 10;
+    } else {
+      doc.setFontSize(14);
+      doc.text(nomeEmpresa, pageWidth / 2, 18, { align: 'center' });
+      y = 30;
     }
-    doc.setFontSize(14);
-    doc.text(nomeEmpresa, textX, 16);
-    doc.setFontSize(11);
-    doc.text('Relatório de Serviço - Cliente', textX, 23);
 
     doc.setFontSize(10);
-    let y = 36;
     doc.text(`Cliente: ${s.cliente || '-'}`, 14, y); y += 6;
     doc.text(`Tipo de Serviço: ${s.tipo || '-'}`, 14, y); y += 6;
     doc.text(`Data de Início: ${formatarData(s.dataInicio)}`, 14, y); y += 6;
@@ -1410,10 +1410,19 @@
 
     doc.setFontSize(11);
     doc.text(`Valor Total do Serviço: ${formatarValor(valorEfetivo)}`, 14, y); y += 6;
-    doc.text(`Total Recebido: ${formatarValor(totalPago)}`, 14, y); y += 6;
+    doc.text(`Total Recebido: ${formatarValor(totalPago)}`, 14, y); y += 10;
+
+    if (y + 16 > 280) { doc.addPage(); y = 16; }
+    const bannerW = pageWidth - 28;
+    doc.setFillColor(200, 200, 200);
+    doc.rect(14, y, bannerW, 12, 'F');
+    doc.setFontSize(13);
     doc.setFont(undefined, 'bold');
-    doc.text(`Saldo a Receber: ${formatarValor(saldo)}`, 14, y);
+    doc.setTextColor(40, 40, 40);
+    doc.text(`Saldo a Receber: ${formatarValor(saldo)}`, pageWidth / 2, y + 8, { align: 'center' });
     doc.setFont(undefined, 'normal');
+    doc.setTextColor(0, 0, 0);
+    y += 20;
 
     doc.setFontSize(8);
     doc.text(`Gerado em ${new Date().toLocaleString('pt-BR')}`, 14, 287);
@@ -1440,21 +1449,21 @@
     const nomeEmpresa = (document.querySelector('header img') || {}).alt || 'Empresa';
     const logo = await carregarLogoBase64();
     const doc = new jspdf.jsPDF();
-    let textX = 14;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let y;
     if (logo) {
-      const logoW = 22;
-      const logoH = Math.min(22, (logo.h / logo.w) * logoW);
-      doc.addImage(logo.dataUrl, 'PNG', 14, 8, logoW, logoH);
-      textX = 14 + logoW + 6;
+      const logoW = 50;
+      const logoH = (logo.h / logo.w) * logoW;
+      doc.addImage(logo.dataUrl, 'PNG', (pageWidth - logoW) / 2, 10, logoW, logoH);
+      y = 10 + logoH + 8;
+    } else {
+      doc.setFontSize(14);
+      doc.text(nomeEmpresa, pageWidth / 2, 18, { align: 'center' });
+      y = 28;
     }
-    doc.setFontSize(14);
-    doc.text(nomeEmpresa, textX, 16);
-    doc.setFontSize(11);
-    doc.text('Relatório de Frete - Proprietários de Caminhão', textX, 23);
     doc.setFontSize(10);
-    doc.text(`Serviço: ${s.tipo || '-'}  |  Cliente: ${s.cliente || '-'}`, 14, 32);
-
-    let y = 40;
+    doc.text(`Serviço: ${s.tipo || '-'}  |  Cliente: ${s.cliente || '-'}`, 14, y);
+    y += 8;
 
     proprietarios.forEach(prop => {
       if (y > 250) { doc.addPage(); y = 16; }
@@ -1495,11 +1504,19 @@
       }
 
       doc.setFontSize(10);
-      doc.text(`Total Frete: ${formatarValor(totalFrete)}   |   Total Abastecido: ${formatarValor(totalAbastecido)}`, 14, y); y += 6;
+      doc.text(`Total Frete: ${formatarValor(totalFrete)}   |   Total Abastecido: ${formatarValor(totalAbastecido)}`, 14, y); y += 8;
+
+      if (y + 16 > 280) { doc.addPage(); y = 16; }
+      const bannerW = pageWidth - 28;
+      doc.setFillColor(200, 200, 200);
+      doc.rect(14, y, bannerW, 12, 'F');
+      doc.setFontSize(13);
       doc.setFont(undefined, 'bold');
-      doc.text(`Saldo a Receber: ${formatarValor(saldo)}`, 14, y);
+      doc.setTextColor(40, 40, 40);
+      doc.text(`Saldo a Receber: ${formatarValor(saldo)}`, pageWidth / 2, y + 8, { align: 'center' });
       doc.setFont(undefined, 'normal');
-      y += 10;
+      doc.setTextColor(0, 0, 0);
+      y += 20;
     });
 
     doc.setFontSize(8);
