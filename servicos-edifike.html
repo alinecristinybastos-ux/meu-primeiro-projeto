@@ -6,6 +6,8 @@
   <title>EDIFIKE - Controle de Serviços</title>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -415,6 +417,23 @@
     }
 
     .btn-add-viagem:hover { opacity: 0.9; }
+
+    .btn-relatorio {
+      flex: 1;
+      min-width: 160px;
+      padding: 8px 14px;
+      background: #1a73e8;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-relatorio.motoristas { background: #f5a623; }
+
+    .btn-relatorio:hover { opacity: 0.9; }
 
     .btn-toggle-viagem {
       font-size: 0.78rem;
@@ -1200,6 +1219,11 @@
             </div>
           </div>
 
+          <div class="viagens-section" style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn-relatorio" onclick="gerarRelatorioCliente('${s.id}')">📄 Relatório Cliente (PDF)</button>
+            <button class="btn-relatorio motoristas" onclick="gerarRelatorioMotoristas('${s.id}')">📄 Relatório Motoristas (PDF)</button>
+          </div>
+
           <div class="viagens-section">
             <div class="viagens-titulo">💰 Pagamentos Recebidos</div>
 
@@ -1299,6 +1323,152 @@
     }
 
     lista.innerHTML = html;
+  }
+
+  function gerarRelatorioCliente(servicoId) {
+    const s = servicos.find(x => x.id === servicoId);
+    if (!s) return;
+
+    const minhasViagens = viagens.filter(v => v.servicoId === servicoId);
+    const meusPagamentos = (s.pagamentos || []).slice().sort((a, b) => (a.data || '').localeCompare(b.data || ''));
+    const totalViagens = minhasViagens.reduce((a, v) => a + (v.quantidade || 0), 0);
+    const valorEfetivo = s.tipoCobranca === 'viagem' ? (s.valorViagem || 0) * totalViagens : (s.valor || 0);
+    const totalPago = meusPagamentos.reduce((a, p) => a + (p.valor || 0), 0);
+    const saldo = Math.max(valorEfetivo - totalPago, 0);
+    const nomeEmpresa = (document.querySelector('header img') || {}).alt || 'Empresa';
+
+    const doc = new jspdf.jsPDF();
+    doc.setFontSize(14);
+    doc.text(nomeEmpresa, 14, 16);
+    doc.setFontSize(11);
+    doc.text('Relatório de Serviço - Cliente', 14, 23);
+
+    doc.setFontSize(10);
+    let y = 32;
+    doc.text(`Cliente: ${s.cliente || '-'}`, 14, y); y += 6;
+    doc.text(`Tipo de Serviço: ${s.tipo || '-'}`, 14, y); y += 6;
+    doc.text(`Data de Início: ${formatarData(s.dataInicio)}`, 14, y); y += 6;
+    doc.text(`Tipo de Cobrança: ${s.tipoCobranca === 'viagem' ? 'Por Viagem' : 'Empreitada'}`, 14, y); y += 8;
+
+    const porData = {};
+    minhasViagens.forEach(v => { porData[v.data] = (porData[v.data] || 0) + (v.quantidade || 0); });
+    const datas = Object.keys(porData).sort();
+
+    if (datas.length > 0) {
+      const head = s.tipoCobranca === 'viagem'
+        ? [['Data', 'Qtd. Viagens', 'Valor por Viagem', 'Subtotal']]
+        : [['Data', 'Qtd. Viagens']];
+      const body = datas.map(data => {
+        const qtd = porData[data];
+        return s.tipoCobranca === 'viagem'
+          ? [formatarData(data), String(qtd), formatarValor(s.valorViagem || 0), formatarValor(qtd * (s.valorViagem || 0))]
+          : [formatarData(data), String(qtd)];
+      });
+      doc.autoTable({ head, body, startY: y, theme: 'grid', headStyles: { fillColor: [26, 115, 232] } });
+      y = doc.lastAutoTable.finalY + 8;
+    }
+
+    if (meusPagamentos.length > 0) {
+      doc.setFontSize(11);
+      doc.text('Pagamentos Recebidos', 14, y); y += 4;
+      doc.autoTable({
+        head: [['Data', 'Valor Recebido']],
+        body: meusPagamentos.map(p => [formatarData(p.data), formatarValor(p.valor)]),
+        startY: y, theme: 'grid', headStyles: { fillColor: [52, 168, 83] }
+      });
+      y = doc.lastAutoTable.finalY + 8;
+    }
+
+    doc.setFontSize(11);
+    doc.text(`Valor Total do Serviço: ${formatarValor(valorEfetivo)}`, 14, y); y += 6;
+    doc.text(`Total Recebido: ${formatarValor(totalPago)}`, 14, y); y += 6;
+    doc.setFont(undefined, 'bold');
+    doc.text(`Saldo a Receber: ${formatarValor(saldo)}`, 14, y);
+    doc.setFont(undefined, 'normal');
+
+    doc.setFontSize(8);
+    doc.text(`Gerado em ${new Date().toLocaleString('pt-BR')}`, 14, 287);
+
+    doc.save(`relatorio-cliente-${(s.cliente || 'servico').trim().replace(/\s+/g, '_')}.pdf`);
+  }
+
+  function gerarRelatorioMotoristas(servicoId) {
+    const s = servicos.find(x => x.id === servicoId);
+    if (!s) return;
+
+    const minhasViagens = viagens.filter(v => v.servicoId === servicoId);
+    const minhasAbastecimentos = abastecimentos.filter(a => a.servicoId === servicoId);
+    const proprietarios = [...new Set([
+      ...minhasViagens.map(v => v.proprietario),
+      ...minhasAbastecimentos.map(a => a.proprietario)
+    ].map(p => (p || '').trim()).filter(Boolean))];
+
+    if (proprietarios.length === 0) {
+      mostrarAlerta('Nenhuma viagem ou abastecimento registrado para gerar o relatório.', true);
+      return;
+    }
+
+    const nomeEmpresa = (document.querySelector('header img') || {}).alt || 'Empresa';
+    const doc = new jspdf.jsPDF();
+    doc.setFontSize(14);
+    doc.text(nomeEmpresa, 14, 16);
+    doc.setFontSize(11);
+    doc.text('Relatório de Frete - Proprietários de Caminhão', 14, 23);
+    doc.setFontSize(10);
+    doc.text(`Serviço: ${s.tipo || '-'}  |  Cliente: ${s.cliente || '-'}`, 14, 30);
+
+    let y = 38;
+
+    proprietarios.forEach(prop => {
+      if (y > 250) { doc.addPage(); y = 16; }
+
+      const viagensProp = minhasViagens
+        .filter(v => (v.proprietario || '').trim().toLowerCase() === prop.toLowerCase())
+        .sort((a, b) => (a.data || '').localeCompare(b.data || ''));
+      const abastecimentosProp = minhasAbastecimentos
+        .filter(a => (a.proprietario || '').trim().toLowerCase() === prop.toLowerCase())
+        .sort((a, b) => (a.data || '').localeCompare(b.data || ''));
+
+      const totalFrete = viagensProp.reduce((a, v) => a + (v.valor || 0) * (v.quantidade || 0), 0);
+      const totalAbastecido = abastecimentosProp.reduce((a, x) => a + (x.valor || 0), 0);
+      const saldo = totalFrete - totalAbastecido;
+
+      doc.setFontSize(12);
+      doc.setFont(undefined, 'bold');
+      doc.text(`Proprietário: ${prop}`, 14, y);
+      doc.setFont(undefined, 'normal');
+      y += 6;
+
+      if (viagensProp.length > 0) {
+        doc.autoTable({
+          head: [['Data', 'Qtd. Viagens', 'Valor/Viagem', 'Subtotal']],
+          body: viagensProp.map(v => [formatarData(v.data), String(v.quantidade || 0), formatarValor(v.valor || 0), formatarValor((v.valor || 0) * (v.quantidade || 0))]),
+          startY: y, theme: 'grid', headStyles: { fillColor: [245, 166, 35] }, margin: { left: 14 }
+        });
+        y = doc.lastAutoTable.finalY + 4;
+      }
+
+      if (abastecimentosProp.length > 0) {
+        doc.autoTable({
+          head: [['Data', 'Valor Abastecido']],
+          body: abastecimentosProp.map(a => [formatarData(a.data), formatarValor(a.valor || 0)]),
+          startY: y, theme: 'grid', headStyles: { fillColor: [234, 67, 53] }, margin: { left: 14 }
+        });
+        y = doc.lastAutoTable.finalY + 4;
+      }
+
+      doc.setFontSize(10);
+      doc.text(`Total Frete: ${formatarValor(totalFrete)}   |   Total Abastecido: ${formatarValor(totalAbastecido)}`, 14, y); y += 6;
+      doc.setFont(undefined, 'bold');
+      doc.text(`Saldo a Receber: ${formatarValor(saldo)}`, 14, y);
+      doc.setFont(undefined, 'normal');
+      y += 10;
+    });
+
+    doc.setFontSize(8);
+    doc.text(`Gerado em ${new Date().toLocaleString('pt-BR')}`, 14, 287);
+
+    doc.save(`relatorio-motoristas-${(s.cliente || 'servico').trim().replace(/\s+/g, '_')}.pdf`);
   }
 
   function formatarValor(v) {
