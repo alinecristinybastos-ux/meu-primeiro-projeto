@@ -508,8 +508,21 @@
     <label>Cliente</label>
     <input type="text" id="cliente" placeholder="Ex: Construtora Silva" />
 
-    <label>Valor do Serviço (R$)</label>
-    <input type="number" id="valor" placeholder="0,00" min="0" step="0.01" />
+    <label>Tipo de Cobrança</label>
+    <select id="tipoCobranca" onchange="toggleTipoCobranca()">
+      <option value="empreitada">📋 Empreitada (valor fixo)</option>
+      <option value="viagem">🚛 Por Viagem</option>
+    </select>
+
+    <div id="valorEmpreitadaBox">
+      <label>Valor do Serviço (R$)</label>
+      <input type="number" id="valor" placeholder="0,00" min="0" step="0.01" />
+    </div>
+
+    <div id="valorViagemBox" style="display:none">
+      <label>Valor por Viagem (R$)</label>
+      <input type="number" id="valorViagem" placeholder="0,00" min="0" step="0.01" />
+    </div>
 
     <div class="row">
       <div>
@@ -639,7 +652,9 @@
     const vendedor  = document.getElementById('vendedorNome').value.trim();
     const tipo      = document.getElementById('tipo').value.trim();
     const cliente   = document.getElementById('cliente').value.trim();
-    const valor     = parseFloat(document.getElementById('valor').value) || 0;
+    const tipoCobranca = document.getElementById('tipoCobranca').value;
+    const valor       = tipoCobranca === 'viagem' ? 0 : (parseFloat(document.getElementById('valor').value) || 0);
+    const valorViagem = tipoCobranca === 'viagem' ? (parseFloat(document.getElementById('valorViagem').value) || 0) : 0;
     const dataInicio = document.getElementById('dataInicio').value;
     const status    = document.getElementById('status').value;
     const obs       = document.getElementById('obs').value.trim();
@@ -655,7 +670,7 @@
 
     try {
       await db.collection('servicos').add({
-        vendedor, tipo, cliente, valor, dataInicio, status, obs,
+        vendedor, tipo, cliente, tipoCobranca, valor, valorViagem, dataInicio, status, obs,
         pagamentos: [],
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
       });
@@ -663,6 +678,9 @@
       document.getElementById('tipo').value    = '';
       document.getElementById('cliente').value = '';
       document.getElementById('valor').value   = '';
+      document.getElementById('valorViagem').value = '';
+      document.getElementById('tipoCobranca').value = 'empreitada';
+      toggleTipoCobranca();
       document.getElementById('status').value  = 'andamento';
       document.getElementById('obs').value = '';
       mostrarAlerta('✔ Serviço registrado!');
@@ -699,6 +717,18 @@
     }
   }
 
+  function toggleTipoCobranca() {
+    const tipo = document.getElementById('tipoCobranca').value;
+    document.getElementById('valorEmpreitadaBox').style.display = tipo === 'viagem' ? 'none' : '';
+    document.getElementById('valorViagemBox').style.display     = tipo === 'viagem' ? '' : 'none';
+  }
+
+  function toggleTipoCobrancaEdicao(id) {
+    const tipo = document.getElementById(`tipoCobrancaEdicao_${id}`).value;
+    document.getElementById(`valorEmpreitadaBoxEdicao_${id}`).style.display = tipo === 'viagem' ? 'none' : '';
+    document.getElementById(`valorViagemBoxEdicao_${id}`).style.display     = tipo === 'viagem' ? '' : 'none';
+  }
+
   function iniciarEdicaoServico(id) {
     editandoServicoId = id;
     renderTudo();
@@ -712,7 +742,9 @@
   async function salvarEdicaoServico(id) {
     const tipo      = document.getElementById(`tipoEdicao_${id}`).value.trim();
     const cliente   = document.getElementById(`clienteEdicao_${id}`).value.trim();
-    const valor     = parseFloat(document.getElementById(`valorEdicao_${id}`).value) || 0;
+    const tipoCobranca = document.getElementById(`tipoCobrancaEdicao_${id}`).value;
+    const valor       = tipoCobranca === 'viagem' ? 0 : (parseFloat(document.getElementById(`valorEdicao_${id}`).value) || 0);
+    const valorViagem = tipoCobranca === 'viagem' ? (parseFloat(document.getElementById(`valorViagemEdicao_${id}`).value) || 0) : 0;
     const dataInicio = document.getElementById(`dataInicioEdicao_${id}`).value;
     const status    = document.getElementById(`statusEdicao_${id}`).value;
     const obs       = document.getElementById(`obsEdicao_${id}`).value.trim();
@@ -722,7 +754,7 @@
     if (!dataInicio) { mostrarAlerta('Informe a data de início.', true); return; }
 
     try {
-      await db.collection('servicos').doc(id).update({ tipo, cliente, valor, dataInicio, status, obs });
+      await db.collection('servicos').doc(id).update({ tipo, cliente, tipoCobranca, valor, valorViagem, dataInicio, status, obs });
       editandoServicoId = null;
       mostrarAlerta('✔ Serviço atualizado!');
     } catch {
@@ -951,6 +983,7 @@
       const minhasAbastecimentos = abastecimentos.filter(a => a.servicoId === s.id);
       const meusPagamentos = s.pagamentos || [];
       const totalViagens  = minhasViagens.reduce((a, v) => a + (v.quantidade || 0), 0);
+      const valorEfetivo  = s.tipoCobranca === 'viagem' ? (s.valorViagem || 0) * totalViagens : (s.valor || 0);
       const formAberto    = formsAbertos.has(s.id);
       const formAbastecimentoAberto = formsAbastecimentoAbertos.has(s.id);
 
@@ -1061,8 +1094,8 @@
       }
 
       const totalPago = meusPagamentos.reduce((a, p) => a + (p.valor || 0), 0);
-      const falta = Math.max((s.valor || 0) - totalPago, 0);
-      const statusPagamento = (s.valor || 0) > 0 && totalPago >= s.valor
+      const falta = Math.max(valorEfetivo - totalPago, 0);
+      const statusPagamento = valorEfetivo > 0 && totalPago >= valorEfetivo
         ? 'recebido'
         : (totalPago > 0 ? 'parcial' : 'a_receber');
 
@@ -1103,10 +1136,19 @@
                 <input type="text" id="tipoEdicao_${s.id}" value="${escaparAtributo(s.tipo)}" />
                 <label>Cliente</label>
                 <input type="text" id="clienteEdicao_${s.id}" value="${escaparAtributo(s.cliente)}" />
+                <label>Tipo de Cobrança</label>
+                <select id="tipoCobrancaEdicao_${s.id}" onchange="toggleTipoCobrancaEdicao('${s.id}')">
+                  <option value="empreitada" ${s.tipoCobranca !== 'viagem' ? 'selected' : ''}>📋 Empreitada (valor fixo)</option>
+                  <option value="viagem" ${s.tipoCobranca === 'viagem' ? 'selected' : ''}>🚛 Por Viagem</option>
+                </select>
                 <div class="row">
-                  <div>
+                  <div id="valorEmpreitadaBoxEdicao_${s.id}" style="${s.tipoCobranca === 'viagem' ? 'display:none' : ''}">
                     <label>Valor do Serviço (R$)</label>
                     <input type="number" id="valorEdicao_${s.id}" value="${s.valor || ''}" min="0" step="0.01" />
+                  </div>
+                  <div id="valorViagemBoxEdicao_${s.id}" style="${s.tipoCobranca === 'viagem' ? '' : 'display:none'}">
+                    <label>Valor por Viagem (R$)</label>
+                    <input type="number" id="valorViagemEdicao_${s.id}" value="${s.valorViagem || ''}" min="0" step="0.01" />
                   </div>
                   <div>
                     <label>Data de Início</label>
@@ -1136,7 +1178,7 @@
               <div class="srv-tipo">${escapar(s.tipo)}</div>
               <div class="srv-cliente">👤 ${escapar(s.cliente)}</div>
               <div class="srv-data">📅 Início: ${formatarData(s.dataInicio)}</div>
-              ${s.valor ? `<div class="srv-valor">${formatarValor(s.valor)}</div>` : ''}
+              ${valorEfetivo ? `<div class="srv-valor">${formatarValor(valorEfetivo)}${s.tipoCobranca === 'viagem' ? ` <span style="font-size:0.7em;color:#888">(${formatarValor(s.valorViagem || 0)} × ${totalViagens} viagens)</span>` : ''}</div>` : ''}
               ${s.vendedor ? `<span class="vendedor-tag">🧑‍💼 ${escapar(s.vendedor)}</span>` : ''}
               ${s.obs ? `<div class="srv-cliente" style="color:#888">💬 ${escapar(s.obs)}</div>` : ''}
               <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
