@@ -119,6 +119,27 @@
     .btn-danger { background: #ea4335; color: white; margin-top: 8px; }
     .btn-danger:hover { opacity: 0.9; }
 
+    .relatorios-row {
+      display: flex;
+      gap: 6px;
+      margin-top: 12px;
+    }
+    .btn-relatorio-mini {
+      flex: 1;
+      padding: 7px 4px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: #f8f9fa;
+      color: #555;
+      font-size: 0.72rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .btn-relatorio-mini:active { transform: scale(0.97); }
+    .btn-relatorio-mini:hover { background: #eef0f2; }
+
     .summary {
       display: flex;
       gap: 10px;
@@ -560,10 +581,10 @@
   </div>
 
   <!-- Botões de ação -->
-  <div id="botoesRelatorio" style="display:none">
-    <button class="btn btn-success" onclick="gerarPDF('geral')">📄 Relatório Geral</button>
-    <button class="btn btn-success" onclick="gerarPDF('a_receber')">📄 Relatório A Receber</button>
-    <button class="btn btn-success" onclick="gerarPDF('a_entregar')">📄 Relatório A Entregar</button>
+  <div id="botoesRelatorio" class="relatorios-row" style="display:none">
+    <button class="btn-relatorio-mini" onclick="gerarPDF('geral')">📄 Geral</button>
+    <button class="btn-relatorio-mini" onclick="gerarPDF('a_receber')">📄 A Receber</button>
+    <button class="btn-relatorio-mini" onclick="gerarPDF('a_entregar')">📄 A Entregar</button>
   </div>
 
   <!-- Filtros -->
@@ -940,7 +961,7 @@
     filtroRow.style.display = 'flex';
     filtroCliente.style.display = 'block';
     summary.style.display = 'flex';
-    botoes.style.display = 'block';
+    botoes.style.display = 'flex';
 
     const totalRecebido = vendas.reduce((s, v) => s + valorPagoEfetivo(v), 0);
     const totalAReceber = vendas.reduce((s, v) => s + Math.max((v.valor || 0) - valorPagoEfetivo(v), 0), 0);
