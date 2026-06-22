@@ -199,6 +199,12 @@
     }
 
     .sale-item .cliente { font-weight: 600; font-size: 0.95rem; }
+    .sale-item .venda-numero {
+      font-weight: 600;
+      font-size: 0.72rem;
+      color: #999;
+      margin-left: 4px;
+    }
     .sale-item .valor {
       font-weight: 700;
       color: #34a853;
@@ -738,6 +744,17 @@
     return lista;
   }
 
+  async function obterProximoNumeroVenda() {
+    const contadorRef = db.collection('contadores').doc('vendas');
+    return await db.runTransaction(async (tx) => {
+      const snap = await tx.get(contadorRef);
+      const atual = snap.exists ? (snap.data().ultimo || 0) : 0;
+      const novo = atual + 1;
+      tx.set(contadorRef, { ultimo: novo });
+      return novo;
+    });
+  }
+
   async function adicionarVenda() {
     const vendedor = document.getElementById('vendedorNome').value.trim();
     const cliente = document.getElementById('cliente').value.trim();
@@ -760,9 +777,10 @@
     btn.textContent = 'Salvando...';
 
     try {
+      const numero = await obterProximoNumeroVenda();
       await db.collection('vendas').add({
-        vendedor, cliente, itens: itensTemp.slice(), valor, data, hora, obs,
-        statusEntrega, statusPagamento, valorPago, lancado: false,
+        numero, vendedor, cliente, itens: itensTemp.slice(), valor, data, hora, obs,
+        statusEntrega, statusPagamento, valorPago, lancadoVenda: false, lancadoPagamento: false,
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
       });
 
@@ -784,17 +802,35 @@
     }
   }
 
-  async function toggleLancado(id, novoValor) {
+  async function toggleLancadoVenda(id, novoValor) {
     const msg = novoValor
-      ? 'Confirma que esta venda foi lançada no sistema?'
-      : 'Confirma que deseja desmarcar esta venda como lançada no sistema?';
+      ? 'Confirma que o lançamento da VENDA foi feito no sistema?'
+      : 'Confirma que deseja desmarcar o lançamento da venda no sistema?';
     if (!confirm(msg)) return;
     const venda = todasVendas.find(v => v.id === id);
     const quem = (document.getElementById('vendedorNome').value || 'Alguém').trim();
-    const acao = `${quem} marcou a venda de ${venda ? venda.cliente : ''} como ${novoValor ? 'lançada no sistema' : 'não lançada'}`;
+    const acao = `${quem} marcou a venda #${venda ? venda.numero : ''} de ${venda ? venda.cliente : ''} como ${novoValor ? 'lançada (venda)' : 'não lançada (venda)'}`;
     try {
       await db.collection('vendas').doc(id).update({
-        lancado: novoValor,
+        lancadoVenda: novoValor,
+        historico: firebase.firestore.FieldValue.arrayUnion({ acao, quando: new Date() })
+      });
+    } catch (e) {
+      mostrarAlerta('Erro ao atualizar.', true);
+    }
+  }
+
+  async function toggleLancadoPagamento(id, novoValor) {
+    const msg = novoValor
+      ? 'Confirma que o lançamento do PAGAMENTO foi feito no sistema?'
+      : 'Confirma que deseja desmarcar o lançamento do pagamento no sistema?';
+    if (!confirm(msg)) return;
+    const venda = todasVendas.find(v => v.id === id);
+    const quem = (document.getElementById('vendedorNome').value || 'Alguém').trim();
+    const acao = `${quem} marcou o pagamento da venda #${venda ? venda.numero : ''} de ${venda ? venda.cliente : ''} como ${novoValor ? 'lançado (pagamento)' : 'não lançado (pagamento)'}`;
+    try {
+      await db.collection('vendas').doc(id).update({
+        lancadoPagamento: novoValor,
         historico: firebase.firestore.FieldValue.arrayUnion({ acao, quando: new Date() })
       });
     } catch (e) {
@@ -805,7 +841,7 @@
   async function atualizarStatusEntrega(id, novoStatus) {
     const venda = todasVendas.find(v => v.id === id);
     const quem = (document.getElementById('vendedorNome').value || 'Alguém').trim();
-    const acao = `${quem} atualizou a entrega de ${venda ? venda.cliente : ''} para "${novoStatus === 'entregue' ? 'Entregue' : 'A Entregar'}"`;
+    const acao = `${quem} atualizou a entrega da venda #${venda ? venda.numero : ''} de ${venda ? venda.cliente : ''} para "${novoStatus === 'entregue' ? 'Entregue' : 'A Entregar'}"`;
     try {
       await db.collection('vendas').doc(id).update({
         statusEntrega: novoStatus,
@@ -833,8 +869,8 @@
 
     const quem = (document.getElementById('vendedorNome').value || 'Alguém').trim();
     const acaoTxt = statusPagamento === 'pago'
-      ? `${quem} marcou o pagamento de ${venda.cliente} como Pago`
-      : `${quem} atualizou o pagamento de ${venda.cliente} (recebido: ${formatarValor(valorPago)})`;
+      ? `${quem} marcou o pagamento da venda #${venda.numero} de ${venda.cliente} como Pago`
+      : `${quem} atualizou o pagamento da venda #${venda.numero} de ${venda.cliente} (recebido: ${formatarValor(valorPago)})`;
 
     try {
       await db.collection('vendas').doc(id).update({
@@ -925,7 +961,7 @@
 
     const valor = totalItensEdicao();
     const quem = (document.getElementById('vendedorNome').value || 'Alguém').trim();
-    const acao = `${quem} corrigiu os dados da venda de ${venda.cliente}`;
+    const acao = `${quem} corrigiu os dados da venda #${venda.numero} de ${venda.cliente}`;
 
     try {
       await db.collection('vendas').doc(id).update({
@@ -981,7 +1017,8 @@
       const statusPagamento = v.statusPagamento || 'a_receber';
       const valorPago = valorPagoEfetivo(v);
       const falta = Math.max((v.valor || 0) - valorPago, 0);
-      const lancado = !!v.lancado;
+      const lancadoVenda = !!v.lancadoVenda;
+      const lancadoPagamento = !!v.lancadoPagamento;
       const itens = v.itens && v.itens.length ? v.itens : [{ produto: v.produto, valor: v.valor }];
       const produtosTxt = itens.map(it => `📦 ${escapar(it.produto)} - ${formatarValor(it.valor)}`).join('<br>');
       const dataRecebimento = v.dataRecebimento || '';
@@ -1020,7 +1057,7 @@
         <div class="sale-item ${ehMinha ? 'minha' : ''} ${statusEntrega === 'a_entregar' ? 'a-entregar' : ''} ${statusPagamento === 'a_receber' ? 'a-receber' : ''}">
           <div class="sale-top">
             <div>
-              <div class="cliente">${escapar(v.cliente)}</div>
+              <div class="cliente">${escapar(v.cliente)}<span class="venda-numero">#${v.numero || '-'}</span></div>
               <div class="produto">${produtosTxt}</div>
               ${v.obs ? `<div class="produto" style="color:#888">💬 ${escapar(v.obs)}</div>` : ''}
               <div class="data">🕐 ${formatarData(v.data)}${v.hora ? ' às ' + v.hora : ''}</div>
@@ -1034,7 +1071,8 @@
                   <option value="a_receber" ${statusPagamento === 'a_receber' ? 'selected' : ''}>⏳ A Receber</option>
                   <option value="pago" ${statusPagamento === 'pago' ? 'selected' : ''}>💰 Pago</option>
                 </select>
-                <span class="badge ${lancado ? 'lancado' : 'nao-lancado'}" onclick="toggleLancado('${v.id}', ${!lancado})">${lancado ? '✔ Lançado no Sistema' : '○ Não Lançado'}</span>
+                <span class="badge ${lancadoVenda ? 'lancado' : 'nao-lancado'}" onclick="toggleLancadoVenda('${v.id}', ${!lancadoVenda})">${lancadoVenda ? '✔ Venda Lançada' : '○ Venda Não Lançada'}</span>
+                <span class="badge ${lancadoPagamento ? 'lancado' : 'nao-lancado'}" onclick="toggleLancadoPagamento('${v.id}', ${!lancadoPagamento})">${lancadoPagamento ? '✔ Pagto Lançado' : '○ Pagto Não Lançado'}</span>
               </div>
               <div class="pagamento-edit-box">
                 <input type="number" class="input-sm" id="valorPagoEdit-${v.id}" placeholder="Valor recebido (R$)" min="0" step="0.01" value="${valorPago || ''}" />
@@ -1100,11 +1138,12 @@
       const recebido = valorPagoEfetivo(v);
       const aReceber = Math.max((v.valor || 0) - recebido, 0);
       const entregaTxt = statusEntrega === 'entregue' ? 'Entregue' : 'A Entregar';
-      const lancadoTxt = v.lancado ? 'Sim' : 'Não';
+      const lancadoVendaTxt = v.lancadoVenda ? 'Sim' : 'Não';
+      const lancadoPagamentoTxt = v.lancadoPagamento ? 'Sim' : 'Não';
       const itens = v.itens && v.itens.length ? v.itens : [{ produto: v.produto, valor: v.valor }];
       const produtosTxt = itens.map(it => `${it.produto} (${formatarValor(it.valor)})`).join('\n');
       return [
-        i + 1,
+        v.numero || '-',
         v.vendedor || '-',
         v.cliente,
         produtosTxt,
@@ -1112,12 +1151,13 @@
         formatarValor(recebido),
         formatarValor(aReceber),
         entregaTxt,
-        lancadoTxt,
+        lancadoVendaTxt,
+        lancadoPagamentoTxt,
         `${formatarData(v.data)}${v.hora ? ' ' + v.hora : ''}`
       ];
     });
 
-    const head = [['#', 'Vendedor', 'Cliente', 'Produtos', 'Valor Total', 'Recebido', 'A Receber', 'Entrega', 'Lançado', 'Data/Hora']];
+    const head = [['#', 'Vendedor', 'Cliente', 'Produtos', 'Valor Total', 'Recebido', 'A Receber', 'Entrega', 'Lanç. Venda', 'Lanç. Pagto', 'Data/Hora']];
     const headStyles = { fillColor: [245, 166, 35], textColor: 255, fontStyle: 'bold', fontSize: 10 };
     const bodyStyles = { fontSize: 9 };
     const columnStyles = { 0: { cellWidth: 8 }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' } };
