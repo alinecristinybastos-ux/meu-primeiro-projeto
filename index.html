@@ -603,6 +603,8 @@
 
   <input type="text" id="filtroCliente" placeholder="🔍 Buscar por nome do cliente..." style="display:none;margin-bottom:12px" oninput="renderVendas()" />
 
+  <button class="filtro-btn" id="btnVerConcluidas" onclick="toggleConcluidas()" style="display:none;width:100%;margin-bottom:12px"></button>
+
   <!-- Lista de vendas -->
   <div id="listaVendas">
     <div class="loading">Conectando ao banco de dados...</div>
@@ -627,6 +629,7 @@
 
   let todasVendas = [];
   let filtroAtual = 'todos';
+  let mostrarConcluidas = false;
   let itensTemp = [];
   let editandoId = null;
   let itensEdicaoTemp = [];
@@ -729,6 +732,17 @@
     filtroAtual = f;
     document.querySelectorAll('.filtro-btn').forEach(b => b.classList.remove('ativo'));
     document.getElementById(f === 'todos' ? 'btnTodos' : f === 'minhas' ? 'btnMinhas' : 'btnHoje').classList.add('ativo');
+    renderVendas();
+  }
+
+  function vendaConcluida(v) {
+    const statusEntrega = v.statusEntrega || 'a_entregar';
+    const statusPagamento = v.statusPagamento || 'a_receber';
+    return statusEntrega === 'entregue' && statusPagamento === 'pago' && !!v.lancadoVenda && !!v.lancadoPagamento;
+  }
+
+  function toggleConcluidas() {
+    mostrarConcluidas = !mostrarConcluidas;
     renderVendas();
   }
 
@@ -993,6 +1007,7 @@
       botoes.style.display = 'none';
       filtroRow.style.display = 'none';
       filtroCliente.style.display = 'none';
+      document.getElementById('btnVerConcluidas').style.display = 'none';
       return;
     }
 
@@ -1008,11 +1023,31 @@
 
     if (vendas.length === 0) {
       lista.innerHTML = '<div class="empty"><span>🔍</span>Nenhuma venda neste filtro.</div>';
+      document.getElementById('btnVerConcluidas').style.display = 'none';
+      return;
+    }
+
+    const concluidasCount = vendas.filter(vendaConcluida).length;
+    const btnConcluidas = document.getElementById('btnVerConcluidas');
+    if (concluidasCount > 0) {
+      btnConcluidas.style.display = 'block';
+      btnConcluidas.classList.toggle('ativo', mostrarConcluidas);
+      btnConcluidas.textContent = mostrarConcluidas
+        ? `🙈 Ocultar Concluídas (${concluidasCount})`
+        : `👁 Ver Concluídas (${concluidasCount})`;
+    } else {
+      btnConcluidas.style.display = 'none';
+    }
+
+    const vendasExibidas = mostrarConcluidas ? vendas : vendas.filter(v => !vendaConcluida(v));
+
+    if (vendasExibidas.length === 0) {
+      lista.innerHTML = '<div class="empty"><span>✅</span>Todas as vendas deste filtro estão concluídas. Toque em "Ver Concluídas" para visualizá-las.</div>';
       return;
     }
 
     let html = '';
-    for (const v of vendas) {
+    for (const v of vendasExibidas) {
       const ehMinha = v.vendedor && v.vendedor.toLowerCase() === meuNome;
       const statusEntrega = v.statusEntrega || 'a_entregar';
       const statusPagamento = v.statusPagamento || 'a_receber';
