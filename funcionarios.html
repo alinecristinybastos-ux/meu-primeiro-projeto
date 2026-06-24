@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Controle de Funcionários</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { font-size: 118%; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #f0f4f8;
+      color: #333;
+      min-height: 100vh;
+    }
+
+    header {
+      background: white;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+      border-bottom: 3px solid #f5a623;
+    }
+
+    header img { height: 44px; flex: 1; object-fit: contain; object-position: left; }
+    header .app-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #888;
+      white-space: nowrap;
+      text-align: right;
+    }
+    header .status-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: #ff9800;
+      flex-shrink: 0;
+    }
+    header .status-dot.online { background: #4caf50; }
+
+    .voltar {
+      text-decoration: none;
+      background: #f0f4f8;
+      color: #555;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .container { padding: 16px; max-width: 600px; margin: 0 auto; }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .card h2 {
+      font-size: 1rem;
+      color: #f5a623;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #555;
+      margin-bottom: 4px;
+      margin-top: 12px;
+    }
+
+    label:first-of-type { margin-top: 0; }
+
+    input, textarea, select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1.5px solid #dde3ec;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      color: #333;
+      background: #fafbff;
+      transition: border 0.2s;
+      outline: none;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      border-color: #f5a623;
+      background: white;
+    }
+
+    .row { display: flex; gap: 10px; }
+    .row > div { flex: 1; }
+
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 13px;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      margin-top: 16px;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-primary { background: #f5a623; color: white; }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-danger { background: #ea4335; color: white; margin-top: 8px; }
+    .btn-danger:hover { opacity: 0.9; }
+
+    .func-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .func-meta { font-size: 0.78rem; color: #888; }
+
+    .edit-venda-btn, .delete-btn {
+      background: none;
+      border: none;
+      color: #ccc;
+      font-size: 1.1rem;
+      cursor: pointer;
+      padding: 0 0 0 8px;
+      line-height: 1;
+    }
+    .edit-venda-btn:hover { color: #4a90d9; }
+    .delete-btn:hover { color: #ea4335; }
+
+    .saldo-box {
+      background: #e6f4ea;
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin: 14px 0;
+    }
+    .saldo-box.negativo { background: #fce8e6; }
+    .saldo-label { font-size: 0.75rem; color: #888; font-weight: 600; }
+    .saldo-valor { font-size: 1.4rem; font-weight: 700; color: #34a853; }
+    .saldo-box.negativo .saldo-valor { color: #ea4335; }
+    .saldo-detalhe { font-size: 0.75rem; color: #777; margin-top: 2px; }
+
+    .func-acao-row {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .input-sm {
+      width: auto;
+      flex: 1;
+      min-width: 110px;
+      padding: 6px 8px;
+      font-size: 0.78rem;
+    }
+
+    .btn-acao {
+      border: none;
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: white;
+      white-space: nowrap;
+    }
+    .btn-acao.pagamento { background: #34a853; }
+    .btn-acao.falta { background: #ea4335; }
+    .btn-acao:hover { opacity: 0.9; }
+
+    .btn-historico {
+      width: 100%;
+      margin-top: 14px;
+      padding: 8px;
+      border: 1.5px solid #dde3ec;
+      border-radius: 8px;
+      background: white;
+      color: #888;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .hist-box {
+      margin-top: 8px;
+      border-top: 1px solid #eee;
+      padding-top: 8px;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+
+    .hist-item {
+      font-size: 0.8rem;
+      color: #444;
+      padding: 5px 0;
+      border-bottom: 1px solid #f5f5f5;
+    }
+    .hist-item:last-child { border-bottom: none; }
+
+    .hist-icone { margin-right: 4px; }
+
+    .hist-vazio { font-size: 0.8rem; color: #bbb; text-align: center; padding: 10px 0; }
+
+    .empty {
+      text-align: center;
+      color: #bbb;
+      padding: 30px 0;
+      font-size: 0.9rem;
+    }
+    .empty span { display: block; font-size: 2rem; margin-bottom: 8px; }
+
+    .alert {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #34a853;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      z-index: 999;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    .alert.show { opacity: 1; }
+    .alert.erro { background: #ea4335; }
+
+    .loading { text-align: center; color: #999; padding: 40px 0; }
+  </style>
+</head>
+<body>
+
+<header>
+  <img src="logo.png" alt="Construale" />
+  <div class="app-title">Controle de<br>Funcionários</div>
+  <a class="voltar" href="index.html">← Vendas</a>
+  <div class="status-dot" id="statusDot" title="Conectando..." style="margin-left:8px"></div>
+</header>
+
+<div id="alert" class="alert"></div>
+
+<div class="container">
+
+  <div class="card">
+    <h2>➕ Cadastrar Funcionário</h2>
+    <label>Nome</label>
+    <input type="text" id="nomeFunc" placeholder="Nome do funcionário" />
+    <div class="row">
+      <div>
+        <label>Data de Entrada</label>
+        <input type="date" id="dataEntradaFunc" />
+      </div>
+      <div>
+        <label>Salário (R$)</label>
+        <input type="number" id="salarioFunc" placeholder="0,00" min="0" step="0.01" />
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="adicionarFuncionario()">✔ Cadastrar Funcionário</button>
+  </div>
+
+  <div id="listaFuncionarios">
+    <div class="loading">Conectando ao banco de dados...</div>
+  </div>
+
+</div>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyC-mXOea7ia9170Bu2LGYMUQMQijRiPQok",
+    authDomain: "construale.firebaseapp.com",
+    projectId: "construale",
+    storageBucket: "construale.firebasestorage.app",
+    messagingSenderId: "1079391831106",
+    appId: "1:1079391831106:web:431860394cb8c0dc1599db"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+  let todosFuncionarios = [];
+  let editandoFuncId = null;
+  let historicoExpandido = {};
+
+  db.collection('funcionarios').onSnapshot(
+    snapshot => {
+      todosFuncionarios = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      document.getElementById('statusDot').className = 'status-dot online';
+      document.getElementById('statusDot').title = 'Conectado';
+      renderFuncionarios();
+    },
+    () => { document.getElementById('statusDot').title = 'Sem conexão'; }
+  );
+
+  async function adicionarFuncionario() {
+    const nome = document.getElementById('nomeFunc').value.trim();
+    const dataEntrada = document.getElementById('dataEntradaFunc').value;
+    const salario = parseFloat(document.getElementById('salarioFunc').value) || 0;
+
+    if (!nome) { mostrarAlerta('Informe o nome do funcionário.', true); return; }
+    if (!dataEntrada) { mostrarAlerta('Informe a data de entrada.', true); return; }
+    if (!salario || salario <= 0) { mostrarAlerta('Informe um salário válido.', true); return; }
+
+    const btn = document.querySelector('.btn-primary');
+    btn.disabled = true;
+    btn.textContent = 'Salvando...';
+
+    try {
+      await db.collection('funcionarios').add({
+        nome, dataEntrada, salario,
+        pagamentos: [], faltas: [],
+        historico: [{ acao: `Funcionário ${nome} cadastrado`, quando: new Date() }],
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      document.getElementById('nomeFunc').value = '';
+      document.getElementById('dataEntradaFunc').value = '';
+      document.getElementById('salarioFunc').value = '';
+      mostrarAlerta('✔ Funcionário cadastrado!');
+    } catch (e) {
+      mostrarAlerta('Erro ao salvar. Verifique a conexão.', true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '✔ Cadastrar Funcionário';
+    }
+  }
+
+  async function registrarPagamento(id) {
+    const func = todosFuncionarios.find(f => f.id === id);
+    if (!func) return;
+    const valor = parseFloat(document.getElementById(`valorPag-${id}`).value);
+    const data = document.getElementById(`dataPag-${id}`).value;
+    const obs = (document.getElementById(`obsPag-${id}`).value || '').trim();
+
+    if (!valor || valor <= 0) { mostrarAlerta('Informe um valor válido para o pagamento.', true); return; }
+    if (!data) { mostrarAlerta('Informe a data do pagamento.', true); return; }
+
+    const acao = `Pagamento de ${formatarValor(valor)} registrado para ${func.nome}`;
+    try {
+      await db.collection('funcionarios').doc(id).update({
+        pagamentos: firebase.firestore.FieldValue.arrayUnion({ valor, data, obs, quando: new Date() }),
+        historico: firebase.firestore.FieldValue.arrayUnion({ acao, quando: new Date() })
+      });
+      mostrarAlerta('✔ Pagamento registrado!');
+    } catch (e) {
+      mostrarAlerta('Erro ao registrar pagamento.', true);
+    }
+  }
+
+  async function registrarFalta(id) {
+    const func = todosFuncionarios.find(f => f.id === id);
+    if (!func) return;
+    const data = document.getElementById(`dataFalta-${id}`).value;
+    const motivo = (document.getElementById(`motivoFalta-${id}`).value || '').trim();
+
+    if (!data) { mostrarAlerta('Informe a data da falta.', true); return; }
+
+    const acao = `Falta registrada para ${func.nome} em ${formatarData(data)}`;
+    try {
+      await db.collection('funcionarios').doc(id).update({
+        faltas: firebase.firestore.FieldValue.arrayUnion({ data, motivo, quando: new Date() }),
+        historico: firebase.firestore.FieldValue.arrayUnion({ acao, quando: new Date() })
+      });
+      mostrarAlerta('✔ Falta registrada!');
+    } catch (e) {
+      mostrarAlerta('Erro ao registrar falta.', true);
+    }
+  }
+
+  async function deletarFuncionario(id) {
+    if (!confirm('Remover este funcionário e todo o seu histórico?')) return;
+    try {
+      await db.collection('funcionarios').doc(id).delete();
+    } catch (e) {
+      mostrarAlerta('Erro ao remover.', true);
+    }
+  }
+
+  function iniciarEdicaoFuncionario(id) {
+    editandoFuncId = id;
+    renderFuncionarios();
+  }
+
+  function cancelarEdicaoFuncionario() {
+    editandoFuncId = null;
+    renderFuncionarios();
+  }
+
+  async function salvarEdicaoFuncionario(id) {
+    const nome = document.getElementById(`nomeEdicao-${id}`).value.trim();
+    const dataEntrada = document.getElementById(`dataEntradaEdicao-${id}`).value;
+    const salario = parseFloat(document.getElementById(`salarioEdicao-${id}`).value) || 0;
+
+    if (!nome) { mostrarAlerta('Informe o nome do funcionário.', true); return; }
+    if (!dataEntrada) { mostrarAlerta('Informe a data de entrada.', true); return; }
+    if (!salario || salario <= 0) { mostrarAlerta('Informe um salário válido.', true); return; }
+
+    const acao = `Dados de ${nome} foram atualizados`;
+    try {
+      await db.collection('funcionarios').doc(id).update({
+        nome, dataEntrada, salario,
+        historico: firebase.firestore.FieldValue.arrayUnion({ acao, quando: new Date() })
+      });
+      editandoFuncId = null;
+      mostrarAlerta('✔ Funcionário atualizado!');
+    } catch (e) {
+      mostrarAlerta('Erro ao atualizar.', true);
+    }
+  }
+
+  function toggleHistorico(id) {
+    historicoExpandido[id] = !historicoExpandido[id];
+    renderFuncionarios();
+  }
+
+  function renderFuncionarios() {
+    const lista = document.getElementById('listaFuncionarios');
+
+    if (todosFuncionarios.length === 0) {
+      lista.innerHTML = '<div class="empty"><span>👥</span>Nenhum funcionário cadastrado ainda.</div>';
+      return;
+    }
+
+    const hoje = new Date().toISOString().slice(0, 10);
+    const mesAtual = hoje.slice(0, 7);
+    const funcionarios = todosFuncionarios.slice().sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
+
+    let html = '';
+    for (const f of funcionarios) {
+      if (f.id === editandoFuncId) {
+        html += `
+        <div class="card">
+          <h2>✏️ Editar Funcionário</h2>
+          <label>Nome</label>
+          <input type="text" id="nomeEdicao-${f.id}" value="${escaparAtributo(f.nome)}" />
+          <div class="row">
+            <div>
+              <label>Data de Entrada</label>
+              <input type="date" id="dataEntradaEdicao-${f.id}" value="${f.dataEntrada || ''}" />
+            </div>
+            <div>
+              <label>Salário (R$)</label>
+              <input type="number" id="salarioEdicao-${f.id}" min="0" step="0.01" value="${f.salario || ''}" />
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="salvarEdicaoFuncionario('${f.id}')">💾 Salvar Alterações</button>
+          <button class="btn btn-danger" onclick="cancelarEdicaoFuncionario()">Cancelar</button>
+        </div>`;
+        continue;
+      }
+
+      const pagamentos = (f.pagamentos || []).slice().sort((a, b) => new Date(b.data) - new Date(a.data));
+      const faltas = (f.faltas || []).slice().sort((a, b) => new Date(b.data) - new Date(a.data));
+      const pagamentosMes = pagamentos.filter(p => (p.data || '').slice(0, 7) === mesAtual);
+      const faltasMes = faltas.filter(ft => (ft.data || '').slice(0, 7) === mesAtual);
+      const totalPagoMes = pagamentosMes.reduce((s, p) => s + (p.valor || 0), 0);
+      const diaria = (f.salario || 0) / 30;
+      const descontoFaltasMes = faltasMes.length * diaria;
+      const saldoMes = (f.salario || 0) - totalPagoMes - descontoFaltasMes;
+
+      const expandido = !!historicoExpandido[f.id];
+      const historicoCombinado = [
+        ...pagamentos.map(p => ({ tipo: 'pagamento', ...p })),
+        ...faltas.map(ft => ({ tipo: 'falta', ...ft }))
+      ].sort((a, b) => new Date(b.data) - new Date(a.data));
+
+      const historicoHtml = historicoCombinado.length
+        ? historicoCombinado.map(h => h.tipo === 'pagamento'
+            ? `<div class="hist-item"><span class="hist-icone">💰</span>Pagamento de ${formatarValor(h.valor)} em ${formatarData(h.data)}${h.obs ? ` — ${escapar(h.obs)}` : ''}</div>`
+            : `<div class="hist-item"><span class="hist-icone">🚫</span>Falta em ${formatarData(h.data)}${h.motivo ? ` — ${escapar(h.motivo)}` : ''}</div>`
+          ).join('')
+        : '<div class="hist-vazio">Nenhum lançamento ainda.</div>';
+
+      html += `
+      <div class="card">
+        <div class="func-top">
+          <div>
+            <h2 style="margin-bottom:4px">👤 ${escapar(f.nome)}</h2>
+            <div class="func-meta">Entrada: ${formatarData(f.dataEntrada)} · Salário: ${formatarValor(f.salario)}</div>
+          </div>
+          <div style="display:flex;align-items:center">
+            <button class="edit-venda-btn" onclick="iniciarEdicaoFuncionario('${f.id}')" title="Editar funcionário">✏️</button>
+            <button class="delete-btn" onclick="deletarFuncionario('${f.id}')" title="Remover">✕</button>
+          </div>
+        </div>
+
+        <div class="saldo-box ${saldoMes < 0 ? 'negativo' : ''}">
+          <div class="saldo-label">Saldo do mês</div>
+          <div class="saldo-valor">${formatarValor(saldoMes)}</div>
+          <div class="saldo-detalhe">Pago no mês: ${formatarValor(totalPagoMes)} · Faltas no mês: ${faltasMes.length}${faltasMes.length ? ` (-${formatarValor(descontoFaltasMes)})` : ''}</div>
+        </div>
+
+        <div class="func-acao-row">
+          <input type="number" class="input-sm" id="valorPag-${f.id}" placeholder="Valor pago (R$)" min="0" step="0.01" />
+          <input type="date" class="input-sm" id="dataPag-${f.id}" value="${hoje}" />
+          <input type="text" class="input-sm" id="obsPag-${f.id}" placeholder="Observação (opcional)" />
+          <button class="btn-acao pagamento" onclick="registrarPagamento('${f.id}')">💰 Registrar Pagamento</button>
+        </div>
+
+        <div class="func-acao-row">
+          <input type="date" class="input-sm" id="dataFalta-${f.id}" value="${hoje}" />
+          <input type="text" class="input-sm" id="motivoFalta-${f.id}" placeholder="Motivo (opcional)" />
+          <button class="btn-acao falta" onclick="registrarFalta('${f.id}')">🚫 Registrar Falta</button>
+        </div>
+
+        <button class="btn-historico" onclick="toggleHistorico('${f.id}')">${expandido ? '▲ Ocultar Histórico' : `▼ Ver Histórico (${historicoCombinado.length})`}</button>
+        ${expandido ? `<div class="hist-box">${historicoHtml}</div>` : ''}
+      </div>`;
+    }
+
+    lista.innerHTML = html;
+  }
+
+  function formatarValor(v) {
+    return (v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  }
+
+  function formatarData(d) {
+    if (!d) return '';
+    const [y, m, dia] = d.split('-');
+    return `${dia}/${m}/${y}`;
+  }
+
+  function escapar(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function escaparAtributo(str) {
+    return escapar(str).replace(/"/g,'&quot;');
+  }
+
+  function mostrarAlerta(msg, erro = false) {
+    const el = document.getElementById('alert');
+    el.textContent = msg;
+    el.className = 'alert show' + (erro ? ' erro' : '');
+    setTimeout(() => el.className = 'alert', 2500);
+  }
+</script>
+</body>
+</html>
