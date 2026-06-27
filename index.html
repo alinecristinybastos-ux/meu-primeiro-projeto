@@ -362,6 +362,17 @@
 
     .item-remove:hover { color: #ea4335; }
 
+    .item-edit {
+      background: none;
+      border: none;
+      color: #999;
+      font-size: 0.9rem;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .item-edit:hover { color: #245a8d; }
+
     .itens-total {
       text-align: right;
       font-size: 0.85rem;
@@ -937,6 +948,7 @@
       <div class="item-linha">
         <div class="item-nome">${escapar(it.produto)}</div>
         <div class="item-valor">${formatarValor(it.valor)}</div>
+        <button type="button" class="item-edit" onclick="editarItemEdicao('${id}', ${idx})" title="Editar">✏️</button>
         <button type="button" class="item-remove" onclick="removerItemEdicao('${id}', ${idx})" title="Remover">✕</button>
       </div>`).join('');
     html += `<div class="itens-total">Total: ${formatarValor(totalItensEdicao())}</div>`;
@@ -958,6 +970,15 @@
   }
 
   function removerItemEdicao(id, idx) {
+    itensEdicaoTemp.splice(idx, 1);
+    renderItensEdicaoBox(id);
+  }
+
+  function editarItemEdicao(id, idx) {
+    const it = itensEdicaoTemp[idx];
+    if (!it) return;
+    document.getElementById(`produtoItemEdicao-${id}`).value = it.produto;
+    document.getElementById(`valorItemEdicao-${id}`).value = it.valor;
     itensEdicaoTemp.splice(idx, 1);
     renderItensEdicaoBox(id);
   }
@@ -1112,7 +1133,7 @@
               </div>
               <div class="pagamento-edit-box">
                 <input type="number" class="input-sm" id="valorPagoEdit-${v.id}" placeholder="Valor recebido (R$)" min="0" step="0.01" value="${valorPago || ''}" />
-                <input type="date" class="input-sm" id="dataRecebEdit-${v.id}" value="${dataRecebimento}" />
+                <input type="date" class="input-sm" id="dataRecebEdit-${v.id}" value="${dataRecebimento || new Date().toISOString().slice(0, 10)}" />
                 <button class="btn-salvar-pag" onclick="salvarPagamento('${v.id}')">💾 Salvar Pagamento</button>
               </div>
               ${statusPagamento === 'a_receber' && falta > 0 ? `<div class="falta-texto">Falta pagar: ${formatarValor(falta)}</div>` : ''}
@@ -1174,8 +1195,6 @@
       const recebido = valorPagoEfetivo(v);
       const aReceber = Math.max((v.valor || 0) - recebido, 0);
       const entregaTxt = statusEntrega === 'entregue' ? 'Entregue' : 'A Entregar';
-      const lancadoVendaTxt = v.lancadoVenda ? 'Sim' : 'Não';
-      const lancadoPagamentoTxt = v.lancadoPagamento ? 'Sim' : 'Não';
       const itens = v.itens && v.itens.length ? v.itens : [{ produto: v.produto, valor: v.valor }];
       const produtosTxt = itens.map(it => `${it.produto} (${formatarValor(it.valor)})`).join('\n');
       return [
@@ -1187,13 +1206,11 @@
         formatarValor(recebido),
         formatarValor(aReceber),
         entregaTxt,
-        lancadoVendaTxt,
-        lancadoPagamentoTxt,
         `${formatarData(v.data)}${v.hora ? ' ' + v.hora : ''}`
       ];
     });
 
-    const head = [['#', 'Vendedor', 'Cliente', 'Produtos', 'Valor Total', 'Recebido', 'A Receber', 'Entrega', 'Lanç. Venda', 'Lanç. Pagto', 'Data/Hora']];
+    const head = [['#', 'Vendedor', 'Cliente', 'Produtos', 'Valor Total', 'Recebido', 'A Receber', 'Entrega', 'Data/Hora']];
     const headStyles = { fillColor: [245, 166, 35], textColor: 255, fontStyle: 'bold', fontSize: 10 };
     const bodyStyles = { fontSize: 9 };
     const columnStyles = { 0: { cellWidth: 8 }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' } };
