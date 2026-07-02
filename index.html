@@ -124,6 +124,28 @@
       gap: 6px;
       margin-top: 12px;
     }
+    .periodo-row {
+      display: flex;
+      gap: 6px;
+      margin-top: 6px;
+      align-items: center;
+    }
+    .periodo-row label {
+      font-size: 0.7rem;
+      color: #888;
+      white-space: nowrap;
+      margin: 0;
+    }
+    .periodo-row input[type="date"] {
+      flex: 1;
+      font-size: 0.72rem;
+      padding: 5px 6px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: #f8f9fa;
+      color: #555;
+      min-width: 0;
+    }
     .btn-relatorio-mini {
       flex: 1;
       padding: 7px 4px;
@@ -604,6 +626,11 @@
     <button class="btn-relatorio-mini" onclick="gerarPDF('a_receber')">📄 A Receber</button>
     <button class="btn-relatorio-mini" onclick="gerarPDF('a_entregar')">📄 A Entregar</button>
   </div>
+  <div id="filtroDataRow" class="periodo-row" style="display:none">
+    <label>Período:</label>
+    <input type="date" id="periodoInicio" title="Data inicial" />
+    <input type="date" id="periodoFim" title="Data final" />
+  </div>
 
   <!-- Filtros -->
   <div class="filtro-row" id="filtroRow" style="display:none">
@@ -1026,6 +1053,7 @@
       lista.innerHTML = '<div class="empty"><span>📋</span>Nenhuma venda registrada ainda.</div>';
       summary.style.display = 'none';
       botoes.style.display = 'none';
+      document.getElementById('filtroDataRow').style.display = 'none';
       filtroRow.style.display = 'none';
       filtroCliente.style.display = 'none';
       document.getElementById('btnVerConcluidas').style.display = 'none';
@@ -1036,6 +1064,7 @@
     filtroCliente.style.display = 'block';
     summary.style.display = 'flex';
     botoes.style.display = 'flex';
+    document.getElementById('filtroDataRow').style.display = 'flex';
 
     const totalRecebido = vendas.reduce((s, v) => s + valorPagoEfetivo(v), 0);
     const totalAReceber = vendas.reduce((s, v) => s + Math.max((v.valor || 0) - valorPagoEfetivo(v), 0), 0);
@@ -1164,8 +1193,16 @@
     if (tipo === 'a_receber') vendas = vendas.filter(v => (v.statusPagamento || 'a_receber') === 'a_receber');
     if (tipo === 'a_entregar') vendas = vendas.filter(v => (v.statusEntrega || 'a_entregar') === 'a_entregar');
 
+    const periodoInicio = document.getElementById('periodoInicio').value;
+    const periodoFim = document.getElementById('periodoFim').value;
+    if (periodoInicio) vendas = vendas.filter(v => (v.data || '') >= periodoInicio);
+    if (periodoFim) vendas = vendas.filter(v => (v.data || '') <= periodoFim);
+
     const titulos = { geral: 'Relatório Geral de Vendas', a_receber: 'Relatório de Vendas A Receber', a_entregar: 'Relatório de Vendas A Entregar' };
-    const titulo = titulos[tipo] || 'Relatório de Vendas';
+    const periodoTxt = periodoInicio || periodoFim
+      ? `  |  ${periodoInicio ? formatarData(periodoInicio) : '...'}  até  ${periodoFim ? formatarData(periodoFim) : '...'}`
+      : '';
+    const titulo = (titulos[tipo] || 'Relatório de Vendas') + periodoTxt;
     const nomesMeses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
     // Cabeçalho branco com borda amarela
