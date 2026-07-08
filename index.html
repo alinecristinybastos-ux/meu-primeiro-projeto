@@ -119,6 +119,49 @@
     .btn-danger { background: #ea4335; color: white; margin-top: 8px; }
     .btn-danger:hover { opacity: 0.9; }
 
+    .relatorios-row {
+      display: flex;
+      gap: 6px;
+      margin-top: 12px;
+    }
+    .periodo-row {
+      display: flex;
+      gap: 6px;
+      margin-top: 6px;
+      align-items: center;
+    }
+    .periodo-row label {
+      font-size: 0.7rem;
+      color: #888;
+      white-space: nowrap;
+      margin: 0;
+    }
+    .periodo-row input[type="date"] {
+      flex: 1;
+      font-size: 0.72rem;
+      padding: 5px 6px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: #f8f9fa;
+      color: #555;
+      min-width: 0;
+    }
+    .btn-relatorio-mini {
+      flex: 1;
+      padding: 7px 4px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: #f8f9fa;
+      color: #555;
+      font-size: 0.72rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .btn-relatorio-mini:active { transform: scale(0.97); }
+    .btn-relatorio-mini:hover { background: #eef0f2; }
+
     .summary {
       display: flex;
       gap: 10px;
@@ -178,6 +221,12 @@
     }
 
     .sale-item .cliente { font-weight: 600; font-size: 0.95rem; }
+    .sale-item .venda-numero {
+      font-weight: 600;
+      font-size: 0.72rem;
+      color: #999;
+      margin-left: 4px;
+    }
     .sale-item .valor {
       font-weight: 700;
       color: #34a853;
@@ -254,6 +303,7 @@
     .filtro-row {
       display: flex;
       gap: 8px;
+      margin-top: 12px;
       margin-bottom: 12px;
     }
 
@@ -334,6 +384,17 @@
 
     .item-remove:hover { color: #ea4335; }
 
+    .item-edit {
+      background: none;
+      border: none;
+      color: #999;
+      font-size: 0.9rem;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .item-edit:hover { color: #245a8d; }
+
     .itens-total {
       text-align: right;
       font-size: 0.85rem;
@@ -413,37 +474,6 @@
       margin-top: 4px;
     }
 
-    .notificacoes-box {
-      background: #fff8e1;
-      border: 1.5px solid #f5a623;
-      border-radius: 10px;
-      padding: 10px 14px;
-      margin-bottom: 14px;
-    }
-
-    .notificacoes-titulo {
-      font-weight: 700;
-      font-size: 0.85rem;
-      color: #8a5d00;
-      margin-bottom: 6px;
-    }
-
-    .notificacao-item {
-      font-size: 0.8rem;
-      color: #555;
-      padding: 4px 0;
-      border-top: 1px solid #f0dca3;
-    }
-
-    .notificacao-item:first-of-type { border-top: none; }
-
-    .notificacao-item b { color: #333; }
-
-    .notificacao-tempo {
-      color: #999;
-      font-size: 0.72rem;
-    }
-
     .edit-venda-btn {
       background: none;
       border: none;
@@ -505,7 +535,8 @@
 <header>
   <img src="logo.png" alt="Construale" />
   <div class="app-title">Controle de<br>Vendas</div>
-  <a href="tarefas.html" title="Tarefas do Dia" style="margin-left:auto;text-decoration:none;background:#f5a623;color:white;padding:6px 12px;border-radius:8px;font-size:0.8rem;font-weight:600;white-space:nowrap;">📋 Tarefas</a>
+  <a href="alteracoes.html" title="Alterações Recentes" style="margin-left:auto;text-decoration:none;background:#888;color:white;padding:6px 12px;border-radius:8px;font-size:0.8rem;font-weight:600;white-space:nowrap;">🔔 Alterações</a>
+  <a href="tarefas.html" title="Tarefas do Dia" style="text-decoration:none;background:#f5a623;color:white;padding:6px 12px;border-radius:8px;font-size:0.8rem;font-weight:600;white-space:nowrap;">📋 Tarefas</a>
   <div class="status-dot" id="statusDot" title="Conectando..." style="margin-left:8px"></div>
 </header>
 
@@ -589,6 +620,18 @@
     </div>
   </div>
 
+  <!-- Botões de ação -->
+  <div id="botoesRelatorio" class="relatorios-row" style="display:none">
+    <button class="btn-relatorio-mini" onclick="gerarPDF('geral')">📄 Geral</button>
+    <button class="btn-relatorio-mini" onclick="gerarPDF('a_receber')">📄 A Receber</button>
+    <button class="btn-relatorio-mini" onclick="gerarPDF('a_entregar')">📄 A Entregar</button>
+  </div>
+  <div id="filtroDataRow" class="periodo-row" style="display:none">
+    <label>Período:</label>
+    <input type="date" id="periodoInicio" title="Data inicial" />
+    <input type="date" id="periodoFim" title="Data final" />
+  </div>
+
   <!-- Filtros -->
   <div class="filtro-row" id="filtroRow" style="display:none">
     <button class="filtro-btn ativo" id="btnTodos" onclick="setFiltro('todos')">Todas as vendas</button>
@@ -598,20 +641,13 @@
 
   <input type="text" id="filtroCliente" placeholder="🔍 Buscar por nome do cliente..." style="display:none;margin-bottom:12px" oninput="renderVendas()" />
 
-  <!-- Notificações de alterações recentes -->
-  <div id="notificacoesArea" style="display:none"></div>
+  <button class="filtro-btn" id="btnVerConcluidas" onclick="toggleConcluidas()" style="display:none;width:100%;margin-bottom:12px"></button>
 
   <!-- Lista de vendas -->
   <div id="listaVendas">
     <div class="loading">Conectando ao banco de dados...</div>
   </div>
 
-  <!-- Botões de ação -->
-  <div id="botoesRelatorio" style="display:none">
-    <button class="btn btn-success" onclick="gerarPDF('geral')">📄 Relatório Geral</button>
-    <button class="btn btn-success" onclick="gerarPDF('a_receber')">📄 Relatório A Receber</button>
-    <button class="btn btn-success" onclick="gerarPDF('a_entregar')">📄 Relatório A Entregar</button>
-  </div>
 
 </div>
 
@@ -631,6 +667,7 @@
 
   let todasVendas = [];
   let filtroAtual = 'todos';
+  let mostrarConcluidas = false;
   let itensTemp = [];
   let editandoId = null;
   let itensEdicaoTemp = [];
@@ -736,6 +773,17 @@
     renderVendas();
   }
 
+  function vendaConcluida(v) {
+    const statusEntrega = v.statusEntrega || 'a_entregar';
+    const statusPagamento = v.statusPagamento || 'a_receber';
+    return statusEntrega === 'entregue' && statusPagamento === 'pago' && !!v.lancadoVenda && !!v.lancadoPagamento;
+  }
+
+  function toggleConcluidas() {
+    mostrarConcluidas = !mostrarConcluidas;
+    renderVendas();
+  }
+
   function vendasFiltradas() {
     const meuNome = document.getElementById('vendedorNome').value.trim().toLowerCase();
     const hoje = new Date().toISOString().slice(0, 10);
@@ -747,6 +795,17 @@
     if (buscaCliente) lista = lista.filter(v => v.cliente && v.cliente.toLowerCase().includes(buscaCliente));
 
     return lista;
+  }
+
+  async function obterProximoNumeroVenda() {
+    const contadorRef = db.collection('contadores').doc('vendas');
+    return await db.runTransaction(async (tx) => {
+      const snap = await tx.get(contadorRef);
+      const atual = snap.exists ? (snap.data().ultimo || 0) : 0;
+      const novo = atual + 1;
+      tx.set(contadorRef, { ultimo: novo });
+      return novo;
+    });
   }
 
   async function adicionarVenda() {
@@ -771,9 +830,10 @@
     btn.textContent = 'Salvando...';
 
     try {
+      const numero = await obterProximoNumeroVenda();
       await db.collection('vendas').add({
-        vendedor, cliente, itens: itensTemp.slice(), valor, data, hora, obs,
-        statusEntrega, statusPagamento, valorPago, lancado: false,
+        numero, vendedor, cliente, itens: itensTemp.slice(), valor, data, hora, obs,
+        statusEntrega, statusPagamento, valorPago, lancadoVenda: false, lancadoPagamento: false,
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
       });
 
@@ -795,17 +855,35 @@
     }
   }
 
-  async function toggleLancado(id, novoValor) {
+  async function toggleLancadoVenda(id, novoValor) {
     const msg = novoValor
-      ? 'Confirma que esta venda foi lançada no sistema?'
-      : 'Confirma que deseja desmarcar esta venda como lançada no sistema?';
+      ? 'Confirma que o lançamento da VENDA foi feito no sistema?'
+      : 'Confirma que deseja desmarcar o lançamento da venda no sistema?';
     if (!confirm(msg)) return;
     const venda = todasVendas.find(v => v.id === id);
     const quem = (document.getElementById('vendedorNome').value || 'Alguém').trim();
-    const acao = `${quem} marcou a venda de ${venda ? venda.cliente : ''} como ${novoValor ? 'lançada no sistema' : 'não lançada'}`;
+    const acao = `${quem} marcou a venda #${venda ? venda.numero : ''} de ${venda ? venda.cliente : ''} como ${novoValor ? 'lançada (venda)' : 'não lançada (venda)'}`;
     try {
       await db.collection('vendas').doc(id).update({
-        lancado: novoValor,
+        lancadoVenda: novoValor,
+        historico: firebase.firestore.FieldValue.arrayUnion({ acao, quando: new Date() })
+      });
+    } catch (e) {
+      mostrarAlerta('Erro ao atualizar.', true);
+    }
+  }
+
+  async function toggleLancadoPagamento(id, novoValor) {
+    const msg = novoValor
+      ? 'Confirma que o lançamento do PAGAMENTO foi feito no sistema?'
+      : 'Confirma que deseja desmarcar o lançamento do pagamento no sistema?';
+    if (!confirm(msg)) return;
+    const venda = todasVendas.find(v => v.id === id);
+    const quem = (document.getElementById('vendedorNome').value || 'Alguém').trim();
+    const acao = `${quem} marcou o pagamento da venda #${venda ? venda.numero : ''} de ${venda ? venda.cliente : ''} como ${novoValor ? 'lançado (pagamento)' : 'não lançado (pagamento)'}`;
+    try {
+      await db.collection('vendas').doc(id).update({
+        lancadoPagamento: novoValor,
         historico: firebase.firestore.FieldValue.arrayUnion({ acao, quando: new Date() })
       });
     } catch (e) {
@@ -816,7 +894,7 @@
   async function atualizarStatusEntrega(id, novoStatus) {
     const venda = todasVendas.find(v => v.id === id);
     const quem = (document.getElementById('vendedorNome').value || 'Alguém').trim();
-    const acao = `${quem} atualizou a entrega de ${venda ? venda.cliente : ''} para "${novoStatus === 'entregue' ? 'Entregue' : 'A Entregar'}"`;
+    const acao = `${quem} atualizou a entrega da venda #${venda ? venda.numero : ''} de ${venda ? venda.cliente : ''} para "${novoStatus === 'entregue' ? 'Entregue' : 'A Entregar'}"`;
     try {
       await db.collection('vendas').doc(id).update({
         statusEntrega: novoStatus,
@@ -844,8 +922,8 @@
 
     const quem = (document.getElementById('vendedorNome').value || 'Alguém').trim();
     const acaoTxt = statusPagamento === 'pago'
-      ? `${quem} marcou o pagamento de ${venda.cliente} como Pago`
-      : `${quem} atualizou o pagamento de ${venda.cliente} (recebido: ${formatarValor(valorPago)})`;
+      ? `${quem} marcou o pagamento da venda #${venda.numero} de ${venda.cliente} como Pago`
+      : `${quem} atualizou o pagamento da venda #${venda.numero} de ${venda.cliente} (recebido: ${formatarValor(valorPago)})`;
 
     try {
       await db.collection('vendas').doc(id).update({
@@ -857,48 +935,6 @@
     } catch (e) {
       mostrarAlerta('Erro ao atualizar pagamento.', true);
     }
-  }
-
-  function tempoAtras(data) {
-    const diffMs = Date.now() - data.getTime();
-    const min = Math.floor(diffMs / 60000);
-    if (min < 1) return 'agora mesmo';
-    if (min < 60) return `há ${min} min`;
-    const h = Math.floor(min / 60);
-    if (h < 24) return `há ${h}h`;
-    const d = Math.floor(h / 24);
-    return `há ${d} dia(s)`;
-  }
-
-  function renderNotificacoes() {
-    const box = document.getElementById('notificacoesArea');
-    const limite = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    const eventos = [];
-    for (const v of todasVendas) {
-      if (!v.historico || !v.historico.length) continue;
-      for (const h of v.historico) {
-        const quando = h.quando && h.quando.toDate ? h.quando.toDate() : null;
-        if (quando && quando.getTime() >= limite) eventos.push({ acao: h.acao, quando });
-      }
-    }
-    eventos.sort((a, b) => b.quando - a.quando);
-
-    if (eventos.length === 0) {
-      box.style.display = 'none';
-      box.innerHTML = '';
-      return;
-    }
-
-    box.style.display = 'block';
-    box.innerHTML = `
-      <div class="notificacoes-box">
-        <div class="notificacoes-titulo">🔔 Alterações Recentes</div>
-        ${eventos.map(e => `
-          <div class="notificacao-item">
-            ${escapar(e.acao)} <span class="notificacao-tempo">(${tempoAtras(e.quando)})</span>
-          </div>
-        `).join('')}
-      </div>`;
   }
 
   function valorPagoEfetivo(v) {
@@ -939,6 +975,7 @@
       <div class="item-linha">
         <div class="item-nome">${escapar(it.produto)}</div>
         <div class="item-valor">${formatarValor(it.valor)}</div>
+        <button type="button" class="item-edit" onclick="editarItemEdicao('${id}', ${idx})" title="Editar">✏️</button>
         <button type="button" class="item-remove" onclick="removerItemEdicao('${id}', ${idx})" title="Remover">✕</button>
       </div>`).join('');
     html += `<div class="itens-total">Total: ${formatarValor(totalItensEdicao())}</div>`;
@@ -964,6 +1001,15 @@
     renderItensEdicaoBox(id);
   }
 
+  function editarItemEdicao(id, idx) {
+    const it = itensEdicaoTemp[idx];
+    if (!it) return;
+    document.getElementById(`produtoItemEdicao-${id}`).value = it.produto;
+    document.getElementById(`valorItemEdicao-${id}`).value = it.valor;
+    itensEdicaoTemp.splice(idx, 1);
+    renderItensEdicaoBox(id);
+  }
+
   async function salvarEdicaoVenda(id) {
     const venda = todasVendas.find(v => v.id === id);
     if (!venda) return;
@@ -978,7 +1024,7 @@
 
     const valor = totalItensEdicao();
     const quem = (document.getElementById('vendedorNome').value || 'Alguém').trim();
-    const acao = `${quem} corrigiu os dados da venda de ${venda.cliente}`;
+    const acao = `${quem} corrigiu os dados da venda #${venda.numero} de ${venda.cliente}`;
 
     try {
       await db.collection('vendas').doc(id).update({
@@ -1003,21 +1049,22 @@
     const meuNome = document.getElementById('vendedorNome').value.trim().toLowerCase();
     const vendas = vendasFiltradas();
 
-    renderNotificacoes();
-
     if (todasVendas.length === 0) {
       lista.innerHTML = '<div class="empty"><span>📋</span>Nenhuma venda registrada ainda.</div>';
       summary.style.display = 'none';
       botoes.style.display = 'none';
+      document.getElementById('filtroDataRow').style.display = 'none';
       filtroRow.style.display = 'none';
       filtroCliente.style.display = 'none';
+      document.getElementById('btnVerConcluidas').style.display = 'none';
       return;
     }
 
     filtroRow.style.display = 'flex';
     filtroCliente.style.display = 'block';
     summary.style.display = 'flex';
-    botoes.style.display = 'block';
+    botoes.style.display = 'flex';
+    document.getElementById('filtroDataRow').style.display = 'flex';
 
     const totalRecebido = vendas.reduce((s, v) => s + valorPagoEfetivo(v), 0);
     const totalAReceber = vendas.reduce((s, v) => s + Math.max((v.valor || 0) - valorPagoEfetivo(v), 0), 0);
@@ -1026,17 +1073,38 @@
 
     if (vendas.length === 0) {
       lista.innerHTML = '<div class="empty"><span>🔍</span>Nenhuma venda neste filtro.</div>';
+      document.getElementById('btnVerConcluidas').style.display = 'none';
+      return;
+    }
+
+    const concluidasCount = vendas.filter(vendaConcluida).length;
+    const btnConcluidas = document.getElementById('btnVerConcluidas');
+    if (concluidasCount > 0) {
+      btnConcluidas.style.display = 'block';
+      btnConcluidas.classList.toggle('ativo', mostrarConcluidas);
+      btnConcluidas.textContent = mostrarConcluidas
+        ? `🙈 Ocultar Concluídas (${concluidasCount})`
+        : `👁 Ver Concluídas (${concluidasCount})`;
+    } else {
+      btnConcluidas.style.display = 'none';
+    }
+
+    const vendasExibidas = mostrarConcluidas ? vendas : vendas.filter(v => !vendaConcluida(v));
+
+    if (vendasExibidas.length === 0) {
+      lista.innerHTML = '<div class="empty"><span>✅</span>Todas as vendas deste filtro estão concluídas. Toque em "Ver Concluídas" para visualizá-las.</div>';
       return;
     }
 
     let html = '';
-    for (const v of vendas) {
+    for (const v of vendasExibidas) {
       const ehMinha = v.vendedor && v.vendedor.toLowerCase() === meuNome;
       const statusEntrega = v.statusEntrega || 'a_entregar';
       const statusPagamento = v.statusPagamento || 'a_receber';
       const valorPago = valorPagoEfetivo(v);
       const falta = Math.max((v.valor || 0) - valorPago, 0);
-      const lancado = !!v.lancado;
+      const lancadoVenda = !!v.lancadoVenda;
+      const lancadoPagamento = !!v.lancadoPagamento;
       const itens = v.itens && v.itens.length ? v.itens : [{ produto: v.produto, valor: v.valor }];
       const produtosTxt = itens.map(it => `📦 ${escapar(it.produto)} - ${formatarValor(it.valor)}`).join('<br>');
       const dataRecebimento = v.dataRecebimento || '';
@@ -1075,7 +1143,7 @@
         <div class="sale-item ${ehMinha ? 'minha' : ''} ${statusEntrega === 'a_entregar' ? 'a-entregar' : ''} ${statusPagamento === 'a_receber' ? 'a-receber' : ''}">
           <div class="sale-top">
             <div>
-              <div class="cliente">${escapar(v.cliente)}</div>
+              <div class="cliente">${escapar(v.cliente)}<span class="venda-numero">#${v.numero || '-'}</span></div>
               <div class="produto">${produtosTxt}</div>
               ${v.obs ? `<div class="produto" style="color:#888">💬 ${escapar(v.obs)}</div>` : ''}
               <div class="data">🕐 ${formatarData(v.data)}${v.hora ? ' às ' + v.hora : ''}</div>
@@ -1089,11 +1157,12 @@
                   <option value="a_receber" ${statusPagamento === 'a_receber' ? 'selected' : ''}>⏳ A Receber</option>
                   <option value="pago" ${statusPagamento === 'pago' ? 'selected' : ''}>💰 Pago</option>
                 </select>
-                <span class="badge ${lancado ? 'lancado' : 'nao-lancado'}" onclick="toggleLancado('${v.id}', ${!lancado})">${lancado ? '✔ Lançado no Sistema' : '○ Não Lançado'}</span>
+                <span class="badge ${lancadoVenda ? 'lancado' : 'nao-lancado'}" onclick="toggleLancadoVenda('${v.id}', ${!lancadoVenda})">${lancadoVenda ? '✔ Venda Lançada' : '○ Venda Não Lançada'}</span>
+                <span class="badge ${lancadoPagamento ? 'lancado' : 'nao-lancado'}" onclick="toggleLancadoPagamento('${v.id}', ${!lancadoPagamento})">${lancadoPagamento ? '✔ Pagto Lançado' : '○ Pagto Não Lançado'}</span>
               </div>
               <div class="pagamento-edit-box">
                 <input type="number" class="input-sm" id="valorPagoEdit-${v.id}" placeholder="Valor recebido (R$)" min="0" step="0.01" value="${valorPago || ''}" />
-                <input type="date" class="input-sm" id="dataRecebEdit-${v.id}" value="${dataRecebimento}" />
+                <input type="date" class="input-sm" id="dataRecebEdit-${v.id}" value="${dataRecebimento || new Date().toISOString().slice(0, 10)}" />
                 <button class="btn-salvar-pag" onclick="salvarPagamento('${v.id}')">💾 Salvar Pagamento</button>
               </div>
               ${statusPagamento === 'a_receber' && falta > 0 ? `<div class="falta-texto">Falta pagar: ${formatarValor(falta)}</div>` : ''}
@@ -1124,8 +1193,16 @@
     if (tipo === 'a_receber') vendas = vendas.filter(v => (v.statusPagamento || 'a_receber') === 'a_receber');
     if (tipo === 'a_entregar') vendas = vendas.filter(v => (v.statusEntrega || 'a_entregar') === 'a_entregar');
 
+    const periodoInicio = document.getElementById('periodoInicio').value;
+    const periodoFim = document.getElementById('periodoFim').value;
+    if (periodoInicio) vendas = vendas.filter(v => (v.data || '') >= periodoInicio);
+    if (periodoFim) vendas = vendas.filter(v => (v.data || '') <= periodoFim);
+
     const titulos = { geral: 'Relatório Geral de Vendas', a_receber: 'Relatório de Vendas A Receber', a_entregar: 'Relatório de Vendas A Entregar' };
-    const titulo = titulos[tipo] || 'Relatório de Vendas';
+    const periodoTxt = periodoInicio || periodoFim
+      ? `  |  ${periodoInicio ? formatarData(periodoInicio) : '...'}  até  ${periodoFim ? formatarData(periodoFim) : '...'}`
+      : '';
+    const titulo = (titulos[tipo] || 'Relatório de Vendas') + periodoTxt;
     const nomesMeses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
     // Cabeçalho branco com borda amarela
@@ -1155,11 +1232,10 @@
       const recebido = valorPagoEfetivo(v);
       const aReceber = Math.max((v.valor || 0) - recebido, 0);
       const entregaTxt = statusEntrega === 'entregue' ? 'Entregue' : 'A Entregar';
-      const lancadoTxt = v.lancado ? 'Sim' : 'Não';
       const itens = v.itens && v.itens.length ? v.itens : [{ produto: v.produto, valor: v.valor }];
       const produtosTxt = itens.map(it => `${it.produto} (${formatarValor(it.valor)})`).join('\n');
       return [
-        i + 1,
+        v.numero || '-',
         v.vendedor || '-',
         v.cliente,
         produtosTxt,
@@ -1167,12 +1243,12 @@
         formatarValor(recebido),
         formatarValor(aReceber),
         entregaTxt,
-        lancadoTxt,
+        v.obs || '',
         `${formatarData(v.data)}${v.hora ? ' ' + v.hora : ''}`
       ];
     });
 
-    const head = [['#', 'Vendedor', 'Cliente', 'Produtos', 'Valor Total', 'Recebido', 'A Receber', 'Entrega', 'Lançado', 'Data/Hora']];
+    const head = [['#', 'Vendedor', 'Cliente', 'Produtos', 'Valor Total', 'Recebido', 'A Receber', 'Entrega', 'Observação', 'Data/Hora']];
     const headStyles = { fillColor: [245, 166, 35], textColor: 255, fontStyle: 'bold', fontSize: 10 };
     const bodyStyles = { fontSize: 9 };
     const columnStyles = { 0: { cellWidth: 8 }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' } };

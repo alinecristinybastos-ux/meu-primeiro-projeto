@@ -215,6 +215,8 @@
     .badge.recebido  { background: #e6f4ea; color: #34a853; }
     .badge.parcial   { background: #e8f0fe; color: #1a73e8; }
     .badge.a_receber { background: #fff4e0; color: #c47d00; }
+    .badge.lancado    { background: #e6f4ea; color: #34a853; cursor: pointer; border: none; }
+    .badge.nao-lancado { background: #f0f4f8; color: #888; cursor: pointer; border: none; }
 
     .vendedor-tag {
       font-size: 0.72rem;
@@ -327,19 +329,6 @@
       cursor: pointer;
     }
 
-    /* Resumo por proprietário */
-    .resumo-prop-titulo {
-      font-size: 0.80rem;
-      font-weight: 700;
-      color: #888;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      padding: 10px 0 8px;
-    }
-
-    .liquido-pos { color: #34a853; font-weight: 700; }
-    .liquido-neg { color: #ea4335; font-weight: 700; }
-
     /* Tabela de viagens */
     .viagens-section {
       border-top: 1px solid #f0f4f8;
@@ -349,10 +338,13 @@
     .viagens-titulo {
       font-size: 0.80rem;
       font-weight: 700;
-      color: #888;
+      color: #555;
       text-transform: uppercase;
       letter-spacing: 0.04em;
-      padding: 10px 0 8px;
+      padding: 10px 12px;
+      margin: 10px 0 8px;
+      background: #e8eaed;
+      border-radius: 6px;
     }
 
     table {
@@ -504,6 +496,7 @@
 <header>
   <img src="logo-edifike.jpeg" alt="Edifique Terraplanagem e Construções" />
   <div class="app-title">Controle de<br>Serviços</div>
+  <a href="alteracoes.html" title="Alterações Recentes" style="margin-left:auto;text-decoration:none;background:#888;color:white;padding:6px 12px;border-radius:8px;font-size:0.8rem;font-weight:600;white-space:nowrap;">🔔 Alterações</a>
   <div class="status-dot" id="statusDot" title="Conectando..." style="margin-left:8px"></div>
 </header>
 
@@ -703,7 +696,7 @@
     try {
       await db.collection('servicos').add({
         vendedor, tipo, cliente, tipoCobranca, valor, valorViagem, dataInicio, status, obs,
-        pagamentos: [],
+        pagamentos: [], lancado: false,
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
       });
 
@@ -725,10 +718,35 @@
   }
 
   async function atualizarStatus(id, novoStatus) {
+    const servico = servicos.find(s => s.id === id);
+    const quem = (document.getElementById('vendedorNome').value || 'Alguém').trim();
+    const statusTxt = { andamento: 'Em Andamento', parado: 'Parado', concluido: 'Concluído' }[novoStatus] || novoStatus;
+    const acao = `${quem} atualizou o status do serviço de ${servico ? servico.cliente : ''} para "${statusTxt}"`;
     try {
-      await db.collection('servicos').doc(id).update({ status: novoStatus });
+      await db.collection('servicos').doc(id).update({
+        status: novoStatus,
+        historico: firebase.firestore.FieldValue.arrayUnion({ acao, quando: new Date() })
+      });
     } catch {
       mostrarAlerta('Erro ao atualizar status.', true);
+    }
+  }
+
+  async function toggleLancado(id, novoValor) {
+    const msg = novoValor
+      ? 'Confirma que este serviço foi lançado no sistema?'
+      : 'Confirma que deseja desmarcar este serviço como lançado no sistema?';
+    if (!confirm(msg)) return;
+    const servico = servicos.find(s => s.id === id);
+    const quem = (document.getElementById('vendedorNome').value || 'Alguém').trim();
+    const acao = `${quem} marcou o serviço de ${servico ? servico.cliente : ''} como ${novoValor ? 'lançado no sistema' : 'não lançado'}`;
+    try {
+      await db.collection('servicos').doc(id).update({
+        lancado: novoValor,
+        historico: firebase.firestore.FieldValue.arrayUnion({ acao, quando: new Date() })
+      });
+    } catch {
+      mostrarAlerta('Erro ao atualizar.', true);
     }
   }
 
@@ -785,8 +803,14 @@
     if (!cliente) { mostrarAlerta('Informe o cliente.', true); return; }
     if (!dataInicio) { mostrarAlerta('Informe a data de início.', true); return; }
 
+    const quem = (document.getElementById('vendedorNome').value || 'Alguém').trim();
+    const acao = `${quem} corrigiu os dados do serviço de ${cliente}`;
+
     try {
-      await db.collection('servicos').doc(id).update({ tipo, cliente, tipoCobranca, valor, valorViagem, dataInicio, status, obs });
+      await db.collection('servicos').doc(id).update({
+        tipo, cliente, tipoCobranca, valor, valorViagem, dataInicio, status, obs,
+        historico: firebase.firestore.FieldValue.arrayUnion({ acao, quando: new Date() })
+      });
       editandoServicoId = null;
       mostrarAlerta('✔ Serviço atualizado!');
     } catch {
@@ -809,12 +833,18 @@
     const novoPagamento = { id: 'p_' + Date.now() + Math.random().toString(36).slice(2, 7), valor, data };
     const pagamentos = [...(servico.pagamentos || []), novoPagamento];
 
+    const quem = (document.getElementById('vendedorNome').value || 'Alguém').trim();
+    const acao = `${quem} registrou um pagamento de ${formatarValor(valor)} para o serviço de ${servico.cliente}`;
+
     const btn = document.getElementById(`btnSalvarPagamento_${servicoId}`);
     btn.disabled = true;
     btn.textContent = 'Salvando...';
 
     try {
-      await db.collection('servicos').doc(servicoId).update({ pagamentos });
+      await db.collection('servicos').doc(servicoId).update({
+        pagamentos,
+        historico: firebase.firestore.FieldValue.arrayUnion({ acao, quando: new Date() })
+      });
       valorEl.value = '';
       dataEl.value  = '';
       mostrarAlerta('✔ Pagamento registrado!');
@@ -1102,49 +1132,12 @@
         tabelaAbastecimentos = '<div class="no-viagens">Nenhum abastecimento registrado</div>';
       }
 
-      let tabelaResumo = '';
-      const proprietarios = [...new Set([
-        ...minhasViagens.map(v => v.proprietario),
-        ...minhasAbastecimentos.map(a => a.proprietario)
-      ].map(p => (p || '').trim()).filter(Boolean))];
-      if (proprietarios.length > 0) {
-        let linhas = '';
-        for (const prop of proprietarios) {
-          const totalFrete = minhasViagens
-            .filter(v => (v.proprietario || '').trim().toLowerCase() === prop.toLowerCase())
-            .reduce((a, v) => a + (v.valor || 0) * (v.quantidade || 0), 0);
-          const totalAbastecido = minhasAbastecimentos
-            .filter(a => (a.proprietario || '').trim().toLowerCase() === prop.toLowerCase())
-            .reduce((a, x) => a + (x.valor || 0), 0);
-          const liquido = totalFrete - totalAbastecido;
-          linhas += `
-            <tr>
-              <td>${escapar(prop)}</td>
-              <td>${formatarValor(totalFrete)}</td>
-              <td>${formatarValor(totalAbastecido)}</td>
-              <td class="${liquido >= 0 ? 'liquido-pos' : 'liquido-neg'}">${formatarValor(liquido)}</td>
-            </tr>`;
-        }
-        tabelaResumo = `
-          <div class="resumo-prop-titulo">📊 Resumo por Proprietário</div>
-          <table>
-            <thead>
-              <tr>
-                <th>Proprietário</th>
-                <th>Frete Total</th>
-                <th>Abastecimento</th>
-                <th>Líquido a Pagar</th>
-              </tr>
-            </thead>
-            <tbody>${linhas}</tbody>
-          </table>`;
-      }
-
       const totalPago = meusPagamentos.reduce((a, p) => a + (p.valor || 0), 0);
       const falta = Math.max(valorEfetivo - totalPago, 0);
       const statusPagamento = valorEfetivo > 0 && totalPago >= valorEfetivo
         ? 'recebido'
         : (totalPago > 0 ? 'parcial' : 'a_receber');
+      const lancado = !!s.lancado;
 
       let tabelaPagamentos = '';
       if (meusPagamentos.length > 0) {
@@ -1230,6 +1223,7 @@
               ${s.obs ? `<div class="srv-cliente" style="color:#888">💬 ${escapar(s.obs)}</div>` : ''}
               <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
                 <span class="badge ${statusPagamento}">${statusPagLabel[statusPagamento]}</span>
+                <span class="badge ${lancado ? 'lancado' : 'nao-lancado'}" onclick="toggleLancado('${s.id}', ${!lancado})">${lancado ? '✔ Lançado no Sistema' : '○ Não Lançado'}</span>
               </div>
               ${falta > 0 ? `<div class="falta-texto">Falta pagar: ${formatarValor(falta)}</div>` : ''}
             </div>
@@ -1245,11 +1239,6 @@
                 <button class="delete-btn" onclick="deletarServico('${s.id}')" title="Remover serviço">✕</button>
               </div>
             </div>
-          </div>
-
-          <div class="viagens-section" style="display:flex;gap:8px;flex-wrap:wrap">
-            <button class="btn-relatorio" onclick="gerarRelatorioCliente('${s.id}')">📄 Relatório Cliente (PDF)</button>
-            <button class="btn-relatorio motoristas" onclick="gerarRelatorioMotoristas('${s.id}')">📄 Relatório Motoristas (PDF)</button>
           </div>
 
           <div class="viagens-section">
@@ -1346,7 +1335,10 @@
             </div>
           </div>
 
-          ${tabelaResumo ? `<div class="viagens-section">${tabelaResumo}</div>` : ''}
+          <div class="viagens-section" style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn-relatorio" onclick="gerarRelatorioCliente('${s.id}')">📄 Relatório Cliente (PDF)</button>
+            <button class="btn-relatorio motoristas" onclick="gerarRelatorioMotoristas('${s.id}')">📄 Relatório Motoristas (PDF)</button>
+          </div>
         </div>`;
     }
 

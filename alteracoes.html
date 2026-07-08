@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Alterações Recentes</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { font-size: 118%; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #f0f4f8;
+      color: #333;
+      min-height: 100vh;
+    }
+
+    header {
+      background: white;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+      border-bottom: 3px solid #f5a623;
+    }
+
+    header img { height: 40px; object-fit: contain; object-position: left; }
+    header h1 { font-size: 1.05rem; flex: 1; }
+    header .status-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: #ff9800;
+      flex-shrink: 0;
+    }
+    header .status-dot.online { background: #4caf50; }
+
+    .voltar {
+      text-decoration: none;
+      background: #f0f4f8;
+      color: #555;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .container { padding: 16px; max-width: 700px; margin: 0 auto; }
+
+    .filters {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .filter-btn {
+      padding: 6px 14px;
+      border: 1px solid #ddd;
+      border-radius: 20px;
+      background: white;
+      cursor: pointer;
+      font-size: 0.85rem;
+      color: #555;
+      transition: all 0.2s;
+    }
+
+    .filter-btn.active {
+      background: #f5a623;
+      color: white;
+      border-color: #f5a623;
+    }
+
+    .dia-titulo {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin: 18px 0 8px;
+    }
+
+    .dia-titulo:first-of-type { margin-top: 0; }
+
+    .evento {
+      background: white;
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+      border-left: 4px solid #f5a623;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .evento.servico { border-left-color: #1a73e8; }
+
+    .evento-icone { font-size: 1.1rem; flex-shrink: 0; }
+
+    .evento-texto { font-size: 0.9rem; color: #333; flex: 1; }
+
+    .evento-meta {
+      display: flex;
+      gap: 8px;
+      margin-top: 4px;
+      flex-wrap: wrap;
+    }
+
+    .evento-tag {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: #fff4e0;
+      color: #c47d00;
+    }
+
+    .evento.servico .evento-tag { background: #e8f0fe; color: #1a73e8; }
+
+    .evento-tempo { font-size: 0.72rem; color: #999; }
+
+    .empty {
+      text-align: center;
+      color: #bbb;
+      padding: 40px 0;
+      font-size: 0.95rem;
+    }
+
+    .loading { text-align: center; color: #999; padding: 40px 0; }
+  </style>
+</head>
+<body>
+
+<header>
+  <img src="logo.png" alt="Construale" />
+  <h1>🔔 Alterações Recentes</h1>
+  <div class="status-dot" id="statusDot" title="Conectando..."></div>
+  <a class="voltar" href="index.html">← Vendas</a>
+  <a class="voltar" href="servicos.html">← Serviços</a>
+</header>
+
+<div class="container">
+
+  <div class="filters">
+    <button class="filter-btn active" onclick="setFiltro('todos', this)">Todos</button>
+    <button class="filter-btn" onclick="setFiltro('vendas', this)">🛒 Vendas</button>
+    <button class="filter-btn" onclick="setFiltro('servicos', this)">🔧 Serviços</button>
+  </div>
+
+  <div id="listaEventos">
+    <div class="loading">Conectando ao banco de dados...</div>
+  </div>
+
+</div>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyC-mXOea7ia9170Bu2LGYMUQMQijRiPQok",
+    authDomain: "construale.firebaseapp.com",
+    projectId: "construale",
+    storageBucket: "construale.firebasestorage.app",
+    messagingSenderId: "1079391831106",
+    appId: "1:1079391831106:web:431860394cb8c0dc1599db"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+  let vendas = [];
+  let servicos = [];
+  let filtroAtual = 'todos';
+  let conectados = { vendas: false, servicos: false };
+
+  function marcarConectado(origem) {
+    conectados[origem] = true;
+    if (conectados.vendas && conectados.servicos) {
+      document.getElementById('statusDot').className = 'status-dot online';
+      document.getElementById('statusDot').title = 'Conectado';
+    }
+  }
+
+  db.collection('vendas').onSnapshot(
+    snap => {
+      vendas = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      marcarConectado('vendas');
+      renderEventos();
+    },
+    () => { document.getElementById('statusDot').title = 'Sem conexão'; }
+  );
+
+  db.collection('servicos').onSnapshot(
+    snap => {
+      servicos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      marcarConectado('servicos');
+      renderEventos();
+    },
+    () => { document.getElementById('statusDot').title = 'Sem conexão'; }
+  );
+
+  function setFiltro(filtro, el) {
+    filtroAtual = filtro;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    renderEventos();
+  }
+
+  function coletarEventos() {
+    const eventos = [];
+    if (filtroAtual === 'todos' || filtroAtual === 'vendas') {
+      for (const v of vendas) {
+        if (!v.historico || !v.historico.length) continue;
+        for (const h of v.historico) {
+          const quando = h.quando && h.quando.toDate ? h.quando.toDate() : (h.quando ? new Date(h.quando) : null);
+          if (quando) eventos.push({ acao: h.acao, quando, origem: 'vendas' });
+        }
+      }
+    }
+    if (filtroAtual === 'todos' || filtroAtual === 'servicos') {
+      for (const s of servicos) {
+        if (!s.historico || !s.historico.length) continue;
+        for (const h of s.historico) {
+          const quando = h.quando && h.quando.toDate ? h.quando.toDate() : (h.quando ? new Date(h.quando) : null);
+          if (quando) eventos.push({ acao: h.acao, quando, origem: 'servicos' });
+        }
+      }
+    }
+    eventos.sort((a, b) => b.quando - a.quando);
+    return eventos;
+  }
+
+  function tempoAtras(data) {
+    const diffMs = Date.now() - data.getTime();
+    const min = Math.floor(diffMs / 60000);
+    if (min < 1) return 'agora mesmo';
+    if (min < 60) return `há ${min} min`;
+    const h = Math.floor(min / 60);
+    if (h < 24) return `há ${h}h`;
+    const d = Math.floor(h / 24);
+    return `há ${d} dia(s)`;
+  }
+
+  function formatarDia(data) {
+    return data.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+  }
+
+  function escapar(str) {
+    const d = document.createElement('div');
+    d.appendChild(document.createTextNode(str || ''));
+    return d.innerHTML;
+  }
+
+  function renderEventos() {
+    const lista = document.getElementById('listaEventos');
+    const eventos = coletarEventos();
+
+    if (eventos.length === 0) {
+      lista.innerHTML = '<div class="empty">📭 Nenhuma alteração registrada ainda.</div>';
+      return;
+    }
+
+    let html = '';
+    let diaAtual = null;
+    for (const e of eventos) {
+      const diaTxt = formatarDia(e.quando);
+      if (diaTxt !== diaAtual) {
+        diaAtual = diaTxt;
+        html += `<div class="dia-titulo">${diaTxt}</div>`;
+      }
+      html += `
+        <div class="evento ${e.origem === 'servicos' ? 'servico' : ''}">
+          <div class="evento-icone">${e.origem === 'servicos' ? '🔧' : '🛒'}</div>
+          <div class="evento-texto">
+            ${escapar(e.acao)}
+            <div class="evento-meta">
+              <span class="evento-tag">${e.origem === 'servicos' ? 'Serviços' : 'Vendas'}</span>
+              <span class="evento-tempo">${tempoAtras(e.quando)}</span>
+            </div>
+          </div>
+        </div>`;
+    }
+    lista.innerHTML = html;
+  }
+</script>
+</body>
+</html>
