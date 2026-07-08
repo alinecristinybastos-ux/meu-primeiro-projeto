@@ -213,8 +213,8 @@
     .badge.parado    { background: #fce8e6; color: #ea4335; }
     .badge.concluido { background: #e6f4ea; color: #34a853; }
     .badge.recebido  { background: #e6f4ea; color: #34a853; }
-    .badge.parcial   { background: #e8f0fe; color: #1a73e8; }
-    .badge.a_receber { background: #fff4e0; color: #c47d00; }
+    .badge.parcial   { background: #e8f0fe; color: #1a73e8; cursor: pointer; }
+    .badge.a_receber { background: #fff4e0; color: #c47d00; cursor: pointer; }
     .badge.lancado    { background: #e6f4ea; color: #34a853; cursor: pointer; border: none; }
     .badge.nao-lancado { background: #f0f4f8; color: #888; cursor: pointer; border: none; }
 
@@ -1278,7 +1278,7 @@
               ${s.vendedor ? `<span class="vendedor-tag">🧑‍💼 ${escapar(s.vendedor)}</span>` : ''}
               ${s.obs ? `<div class="srv-cliente" style="color:#888">💬 ${escapar(s.obs)}</div>` : ''}
               <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
-                <span class="badge ${statusPagamento}">${statusPagLabel[statusPagamento]}</span>
+                <span class="badge ${statusPagamento}"${statusPagamento !== 'recebido' ? ` onclick="abrirModalPagamento('${s.id}')" title="Clique para registrar pagamento"` : ''}>${statusPagLabel[statusPagamento]}</span>
                 <span class="badge ${lancado ? 'lancado' : 'nao-lancado'}" onclick="toggleLancado('${s.id}', ${!lancado})">${lancado ? '✔ Lançado no Sistema' : '○ Não Lançado'}</span>
               </div>
               ${falta > 0 ? `<div class="falta-texto">Falta pagar: ${formatarValor(falta)}</div>` : ''}
