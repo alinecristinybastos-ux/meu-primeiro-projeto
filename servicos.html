@@ -467,6 +467,36 @@
     .alert.show { opacity: 1; }
     .alert.erro { background: #ea4335; }
 
+    /* Modal de pagamento */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 2000;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .modal-overlay.aberto { display: flex; }
+    .modal-box {
+      background: #fff;
+      border-radius: 14px;
+      padding: 24px 20px 20px;
+      width: 100%;
+      max-width: 360px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.22);
+    }
+    .modal-box h3 { margin: 0 0 14px; font-size: 1rem; color: #333; }
+    .modal-box label { display: block; font-size: 0.8rem; color: #555; margin-bottom: 4px; margin-top: 12px; }
+    .modal-box input { width: 100%; box-sizing: border-box; padding: 9px 10px; border: 1.5px solid #dde3ec; border-radius: 8px; font-size: 0.9rem; }
+    .modal-box input:focus { outline: none; border-color: #1a73e8; }
+    .modal-acoes { display: flex; gap: 8px; margin-top: 16px; }
+    .modal-acoes button { flex: 1; padding: 10px; border: none; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+    .btn-modal-cancelar { background: #eee; color: #555; }
+    .btn-modal-salvar   { background: #f5a623; color: #fff; }
+    .btn-modal-salvar:disabled { opacity: 0.6; cursor: default; }
+
     .empty {
       text-align: center;
       color: #bbb;
@@ -501,6 +531,22 @@
 </header>
 
 <div id="alert" class="alert"></div>
+
+<!-- Modal de pagamento -->
+<div class="modal-overlay" id="modalPagamento" onclick="if(event.target===this)fecharModalPagamento()">
+  <div class="modal-box">
+    <h3>💰 Adicionar Pagamento</h3>
+    <input type="hidden" id="modalPagServicoId" />
+    <label>Valor Recebido (R$)</label>
+    <input type="number" id="modalPagValor" placeholder="0,00" min="0" step="0.01" inputmode="decimal" />
+    <label>Data do Recebimento</label>
+    <input type="date" id="modalPagData" />
+    <div class="modal-acoes">
+      <button class="btn-modal-cancelar" onclick="fecharModalPagamento()">Cancelar</button>
+      <button class="btn-modal-salvar" id="btnSalvarPagamentoModal" onclick="salvarPagamentoModal()">Salvar Pagamento</button>
+    </div>
+  </div>
+</div>
 
 <div class="container">
 
@@ -818,9 +864,22 @@
     }
   }
 
-  async function adicionarPagamento(servicoId) {
-    const valorStr = (document.getElementById(`pagValor_${servicoId}`) || {}).value || '';
-    const data     = (document.getElementById(`pagData_${servicoId}`) || {}).value || '';
+  function abrirModalPagamento(servicoId) {
+    document.getElementById('modalPagServicoId').value = servicoId;
+    document.getElementById('modalPagValor').value = '';
+    document.getElementById('modalPagData').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('modalPagamento').classList.add('aberto');
+    setTimeout(() => document.getElementById('modalPagValor').focus(), 80);
+  }
+
+  function fecharModalPagamento() {
+    document.getElementById('modalPagamento').classList.remove('aberto');
+  }
+
+  async function salvarPagamentoModal() {
+    const servicoId = document.getElementById('modalPagServicoId').value;
+    const valorStr  = document.getElementById('modalPagValor').value || '';
+    const data      = document.getElementById('modalPagData').value || '';
     const valor = parseFloat(valorStr.replace(',', '.')) || 0;
 
     if (valor <= 0) { mostrarAlerta('Informe um valor de pagamento válido.', true); return; }
@@ -832,8 +891,8 @@
     const novoPagamento = { id: 'p_' + Date.now() + Math.random().toString(36).slice(2, 7), valor, data };
     const pagamentos = [...(servico.pagamentos || []), novoPagamento];
 
-    const btnEl = document.getElementById(`btnSalvarPagamento_${servicoId}`);
-    if (btnEl) { btnEl.disabled = true; btnEl.textContent = 'Salvando...'; }
+    const btnSalvar = document.getElementById('btnSalvarPagamentoModal');
+    if (btnSalvar) { btnSalvar.disabled = true; btnSalvar.textContent = 'Salvando...'; }
 
     try {
       await db.collection('servicos').doc(servicoId).update({ pagamentos });
@@ -844,11 +903,12 @@
         historico: firebase.firestore.FieldValue.arrayUnion({ acao, quando: new Date() })
       }).catch(() => {});
 
+      fecharModalPagamento();
       mostrarAlerta('✔ Pagamento registrado!');
     } catch {
       mostrarAlerta('Erro ao salvar pagamento. Verifique sua conexão.', true);
     } finally {
-      if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'Salvar Pagamento'; }
+      if (btnSalvar) { btnSalvar.disabled = false; btnSalvar.textContent = 'Salvar Pagamento'; }
     }
   }
 
@@ -1242,25 +1302,9 @@
 
             ${tabelaPagamentos}
 
-            <button class="btn-toggle-viagem" onclick="toggleForm('pag_${s.id}')">
-              ${formsAbertos.has('pag_' + s.id) ? '▲ Cancelar' : '➕ Adicionar pagamento'}
+            <button class="btn-toggle-viagem" onclick="abrirModalPagamento('${s.id}')">
+              ➕ Adicionar pagamento
             </button>
-
-            <div class="add-viagem-form ${formsAbertos.has('pag_' + s.id) ? 'aberto' : ''}">
-              <div class="row">
-                <div>
-                  <label style="margin-top:0">Valor Recebido (R$)</label>
-                  <input type="number" id="pagValor_${s.id}" placeholder="0,00" min="0" step="0.01" />
-                </div>
-                <div>
-                  <label style="margin-top:0">Data</label>
-                  <input type="date" id="pagData_${s.id}" value="${hoje}" />
-                </div>
-              </div>
-              <button class="btn-add-viagem" id="btnSalvarPagamento_${s.id}" onclick="adicionarPagamento('${s.id}')">
-                Salvar Pagamento
-              </button>
-            </div>
           </div>
 
           <div class="viagens-section">
