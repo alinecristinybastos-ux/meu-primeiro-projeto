@@ -819,10 +819,9 @@
   }
 
   async function adicionarPagamento(servicoId) {
-    const valorEl = document.getElementById(`pagValor_${servicoId}`);
-    const dataEl  = document.getElementById(`pagData_${servicoId}`);
-    const valor = parseFloat(valorEl.value) || 0;
-    const data  = dataEl.value;
+    const valorStr = (document.getElementById(`pagValor_${servicoId}`) || {}).value || '';
+    const data     = (document.getElementById(`pagData_${servicoId}`) || {}).value || '';
+    const valor = parseFloat(valorStr.replace(',', '.')) || 0;
 
     if (valor <= 0) { mostrarAlerta('Informe um valor de pagamento válido.', true); return; }
     if (!data) { mostrarAlerta('Informe a data do pagamento.', true); return; }
@@ -833,26 +832,23 @@
     const novoPagamento = { id: 'p_' + Date.now() + Math.random().toString(36).slice(2, 7), valor, data };
     const pagamentos = [...(servico.pagamentos || []), novoPagamento];
 
-    const quem = (document.getElementById('vendedorNome').value || 'Alguém').trim();
-    const acao = `${quem} registrou um pagamento de ${formatarValor(valor)} para o serviço de ${servico.cliente}`;
-
-    const btn = document.getElementById(`btnSalvarPagamento_${servicoId}`);
-    btn.disabled = true;
-    btn.textContent = 'Salvando...';
+    const btnEl = document.getElementById(`btnSalvarPagamento_${servicoId}`);
+    if (btnEl) { btnEl.disabled = true; btnEl.textContent = 'Salvando...'; }
 
     try {
-      await db.collection('servicos').doc(servicoId).update({
-        pagamentos,
+      await db.collection('servicos').doc(servicoId).update({ pagamentos });
+
+      const quem = (document.getElementById('vendedorNome') || {}).value || 'Alguém';
+      const acao = `${quem.trim()} registrou um pagamento de ${formatarValor(valor)} para o serviço de ${servico.cliente}`;
+      db.collection('servicos').doc(servicoId).update({
         historico: firebase.firestore.FieldValue.arrayUnion({ acao, quando: new Date() })
-      });
-      valorEl.value = '';
-      dataEl.value  = '';
+      }).catch(() => {});
+
       mostrarAlerta('✔ Pagamento registrado!');
     } catch {
-      mostrarAlerta('Erro ao salvar pagamento.', true);
+      mostrarAlerta('Erro ao salvar pagamento. Verifique sua conexão.', true);
     } finally {
-      btn.disabled = false;
-      btn.textContent = 'Salvar Pagamento';
+      if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'Salvar Pagamento'; }
     }
   }
 
