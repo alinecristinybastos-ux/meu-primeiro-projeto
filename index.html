@@ -612,7 +612,7 @@
   <div class="summary" id="summaryArea" style="display:none">
     <div class="summary-box">
       <div class="value" id="totalRecebido">R$ 0</div>
-      <div class="label-sm">Valor Total Recebido</div>
+      <div class="label-sm">Vendas Recebidas Mês</div>
     </div>
     <div class="summary-box">
       <div class="value" id="totalAReceber">R$ 0</div>
@@ -1066,9 +1066,17 @@
     botoes.style.display = 'flex';
     document.getElementById('filtroDataRow').style.display = 'flex';
 
-    const totalRecebido = vendas.reduce((s, v) => s + valorPagoEfetivo(v), 0);
+    const _agora = new Date();
+    const _mesAtual = _agora.getMonth() + 1;
+    const _anoAtual = _agora.getFullYear();
+    const totalRecebidoMes = vendas.reduce((s, v) => {
+      const dr = v.dataRecebimento || '';
+      if (!dr) return s;
+      const [ano, mes] = dr.split('-').map(Number);
+      return (ano === _anoAtual && mes === _mesAtual) ? s + valorPagoEfetivo(v) : s;
+    }, 0);
     const totalAReceber = vendas.reduce((s, v) => s + Math.max((v.valor || 0) - valorPagoEfetivo(v), 0), 0);
-    document.getElementById('totalRecebido').textContent = formatarValor(totalRecebido);
+    document.getElementById('totalRecebido').textContent = formatarValor(totalRecebidoMes);
     document.getElementById('totalAReceber').textContent = formatarValor(totalAReceber);
 
     if (vendas.length === 0) {
