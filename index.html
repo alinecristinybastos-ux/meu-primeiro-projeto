@@ -556,7 +556,8 @@
     <h2>➕ Nova Venda</h2>
 
     <label>Nome do cliente</label>
-    <input type="text" id="cliente" placeholder="Ex: João da Silva" />
+    <input type="text" id="cliente" placeholder="Ex: João da Silva" list="clientesSugeridos" autocomplete="off" />
+    <datalist id="clientesSugeridos"></datalist>
 
     <label>Produto / Serviço</label>
     <input type="text" id="produtoItem" placeholder="Ex: Pacote Premium, Consultoria..." />
@@ -671,6 +672,10 @@
   let itensTemp = [];
   let editandoId = null;
   let itensEdicaoTemp = [];
+
+  function normalizar(s) {
+    return (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  }
 
   window.onload = function () {
     const agora = new Date();
@@ -791,8 +796,8 @@
     if (filtroAtual === 'minhas') lista = lista.filter(v => v.vendedor && v.vendedor.toLowerCase() === meuNome);
     if (filtroAtual === 'hoje') lista = lista.filter(v => v.data === hoje);
 
-    const buscaCliente = (document.getElementById('filtroCliente').value || '').trim().toLowerCase();
-    if (buscaCliente) lista = lista.filter(v => v.cliente && v.cliente.toLowerCase().includes(buscaCliente));
+    const buscaCliente = normalizar((document.getElementById('filtroCliente').value || '').trim());
+    if (buscaCliente) lista = lista.filter(v => normalizar(v.cliente).includes(buscaCliente));
 
     return lista;
   }
@@ -1066,6 +1071,10 @@
     botoes.style.display = 'flex';
     document.getElementById('filtroDataRow').style.display = 'flex';
 
+    const clientesUnicos = [...new Set(todasVendas.map(v => v.cliente).filter(Boolean))].sort();
+    const datalist = document.getElementById('clientesSugeridos');
+    if (datalist) datalist.innerHTML = clientesUnicos.map(c => `<option value="${c.replace(/"/g, '&quot;')}"></option>`).join('');
+
     const _anoMesAtual = new Date().toISOString().slice(0, 7);
     const totalVendasMes = vendas.reduce((s, v) =>
       (v.data || '').slice(0, 7) === _anoMesAtual ? s + (v.valor || 0) : s, 0);
@@ -1172,8 +1181,8 @@
             </div>
             <div style="display:flex;align-items:center;gap:4px">
               <div class="valor">${formatarValor(v.valor)}</div>
-              ${ehMinha ? `<button class="edit-venda-btn" onclick="iniciarEdicaoVenda('${v.id}')" title="Editar venda">✏️</button>` : ''}
-              ${ehMinha ? `<button class="delete-btn" onclick="deletarVenda('${v.id}')" title="Remover">✕</button>` : ''}
+              <button class="edit-venda-btn" onclick="iniciarEdicaoVenda('${v.id}')" title="Editar venda">✏️</button>
+              <button class="delete-btn" onclick="deletarVenda('${v.id}')" title="Remover">✕</button>
             </div>
           </div>
         </div>`;
