@@ -1074,7 +1074,6 @@
     const clientesUnicos = [...new Set(todasVendas.map(v => v.cliente).filter(Boolean))].sort();
     const datalist = document.getElementById('clientesSugeridos');
     if (datalist) datalist.innerHTML = clientesUnicos.map(c => `<option value="${c.replace(/"/g, '&quot;')}"></option>`).join('');
-
     const _anoMesAtual = new Date().toISOString().slice(0, 7);
     const totalVendasMes = vendas.reduce((s, v) =>
       (v.data || '').slice(0, 7) === _anoMesAtual ? s + (v.valor || 0) : s, 0);
