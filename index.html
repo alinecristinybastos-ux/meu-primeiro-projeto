@@ -430,6 +430,29 @@
       align-items: center;
     }
 
+    .cliente-wrapper { position: relative; }
+    .cliente-dropdown {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: #fff;
+      border: 1.5px solid #dde3ec;
+      border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.14);
+      z-index: 1000;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .cliente-dropdown-item {
+      padding: 10px 14px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      color: #333;
+    }
+    .cliente-dropdown-item:hover { background: #f0f4ff; }
+
     .select-sm {
       width: auto;
       padding: 4px 8px;
@@ -556,8 +579,10 @@
     <h2>➕ Nova Venda</h2>
 
     <label>Nome do cliente</label>
-    <input type="text" id="cliente" placeholder="Ex: João da Silva" list="clientesSugeridos" autocomplete="off" />
-    <datalist id="clientesSugeridos"></datalist>
+    <div class="cliente-wrapper">
+      <input type="text" id="cliente" placeholder="Ex: João da Silva" autocomplete="off" oninput="mostrarSugestoesCliente()" />
+      <div id="clienteDropdown" class="cliente-dropdown"></div>
+    </div>
 
     <label>Produto / Serviço</label>
     <input type="text" id="produtoItem" placeholder="Ex: Pacote Premium, Consultoria..." />
@@ -673,9 +698,28 @@
   let editandoId = null;
   let itensEdicaoTemp = [];
   let editandoItemIdx = null;
+  let todosClientesNomes = [];
 
   function normalizar(s) {
     return (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  }
+
+  function mostrarSugestoesCliente() {
+    const input = document.getElementById('cliente');
+    const dropdown = document.getElementById('clienteDropdown');
+    const termo = normalizar(input.value.trim());
+    if (!termo || todosClientesNomes.length === 0) { dropdown.style.display = 'none'; return; }
+    const matches = todosClientesNomes.filter(c => normalizar(c).includes(termo));
+    if (matches.length === 0) { dropdown.style.display = 'none'; return; }
+    dropdown.innerHTML = matches.map(c =>
+      `<div class="cliente-dropdown-item" onmousedown="selecionarCliente(this)">${escapar(c)}</div>`
+    ).join('');
+    dropdown.style.display = 'block';
+  }
+
+  function selecionarCliente(el) {
+    document.getElementById('cliente').value = el.textContent;
+    document.getElementById('clienteDropdown').style.display = 'none';
   }
 
   window.onload = function () {
@@ -693,6 +737,13 @@
     renderItensTemp();
     toggleValorPago();
     iniciarEscuta();
+
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.cliente-wrapper')) {
+        const d = document.getElementById('clienteDropdown');
+        if (d) d.style.display = 'none';
+      }
+    });
   };
 
   function iniciarEscuta() {
@@ -1078,9 +1129,7 @@
     botoes.style.display = 'flex';
     document.getElementById('filtroDataRow').style.display = 'flex';
 
-    const clientesUnicos = [...new Set(todasVendas.map(v => v.cliente).filter(Boolean))].sort();
-    const datalist = document.getElementById('clientesSugeridos');
-    if (datalist) datalist.innerHTML = clientesUnicos.map(c => `<option value="${c.replace(/"/g, '&quot;')}"></option>`).join('');
+    todosClientesNomes = [...new Set(todasVendas.map(v => v.cliente).filter(Boolean))].sort();
     const _anoMesAtual = new Date().toISOString().slice(0, 7);
     const totalVendasMes = vendas.reduce((s, v) =>
       (v.data || '').slice(0, 7) === _anoMesAtual ? s + (v.valor || 0) : s, 0);
