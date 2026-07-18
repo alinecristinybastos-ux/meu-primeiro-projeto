@@ -497,6 +497,27 @@
       margin-top: 4px;
     }
 
+    .pagamento-linha {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      color: #2e7d32;
+      background: #f0faf0;
+      border-radius: 6px;
+      padding: 4px 8px;
+      margin-top: 4px;
+    }
+    .btn-remover-pag {
+      background: none;
+      border: none;
+      color: #aaa;
+      cursor: pointer;
+      font-size: 0.8rem;
+      padding: 0 2px;
+    }
+    .btn-remover-pag:hover { color: #ea4335; }
+
     .edit-venda-btn {
       background: none;
       border: none;
@@ -962,30 +983,49 @@
     }
   }
 
+  async function atualizarStatusPagamento(id, novoStatus) {
+    try {
+      await db.collection('vendas').doc(id).update({ statusPagamento: novoStatus });
+    } catch (e) { mostrarAlerta('Erro ao atualizar status.', true); }
+  }
+
+  async function removerPagamento(vendaId, pagId) {
+    if (!confirm('Remover este pagamento?')) return;
+    const venda = todasVendas.find(v => v.id === vendaId);
+    if (!venda) return;
+    const pagamentos = (venda.pagamentos || []).filter(p => p.id !== pagId);
+    const totalPago = pagamentos.reduce((s, p) => s + (p.valor || 0), 0);
+    const statusPagamento = totalPago >= (venda.valor || 0) ? 'pago' : 'a_receber';
+    try {
+      await db.collection('vendas').doc(vendaId).update({ pagamentos, statusPagamento });
+    } catch (e) { mostrarAlerta('Erro ao remover pagamento.', true); }
+  }
+
   async function salvarPagamento(id) {
     const venda = todasVendas.find(v => v.id === id);
     if (!venda) return;
-    const statusPagamento = document.getElementById(`selPag-${id}`).value;
     const valorTotal = venda.valor || 0;
-    let valorPago = parseFloat(document.getElementById(`valorPagoEdit-${id}`).value) || 0;
-    if (valorPago > valorTotal) valorPago = valorTotal;
-    if (statusPagamento === 'pago') valorPago = valorTotal;
-    const dataRecebimento = document.getElementById(`dataRecebEdit-${id}`).value;
+    const novoValor = parseFloat(document.getElementById(`valorPagoEdit-${id}`).value) || 0;
+    const data = document.getElementById(`dataRecebEdit-${id}`).value;
 
-    if (valorPago > 0 && !dataRecebimento) {
-      mostrarAlerta('Informe a data do recebimento.', true);
-      return;
+    if (novoValor <= 0) { mostrarAlerta('Informe um valor válido.', true); return; }
+    if (!data) { mostrarAlerta('Informe a data do recebimento.', true); return; }
+
+    let pagamentos = venda.pagamentos ? [...venda.pagamentos] : [];
+    if (!venda.pagamentos && (venda.valorPago || 0) > 0) {
+      pagamentos = [{ id: 'p_migrado_' + id, valor: venda.valorPago, data: venda.dataRecebimento || data }];
     }
+    pagamentos.push({ id: 'p_' + Date.now() + Math.random().toString(36).slice(2, 6), valor: novoValor, data });
+
+    const totalPago = pagamentos.reduce((s, p) => s + (p.valor || 0), 0);
+    const statusPagamento = totalPago >= valorTotal ? 'pago' : 'a_receber';
 
     const quem = (document.getElementById('vendedorNome').value || 'Alguém').trim();
-    const acaoTxt = statusPagamento === 'pago'
-      ? `${quem} marcou o pagamento da venda #${venda.numero} de ${venda.cliente} como Pago`
-      : `${quem} atualizou o pagamento da venda #${venda.numero} de ${venda.cliente} (recebido: ${formatarValor(valorPago)})`;
+    const acaoTxt = `${quem} registrou recebimento de ${formatarValor(novoValor)} na venda #${venda.numero} de ${venda.cliente}`;
 
     try {
       await db.collection('vendas').doc(id).update({
-        statusPagamento, valorPago,
-        dataRecebimento: valorPago > 0 ? dataRecebimento : '',
+        pagamentos, statusPagamento,
         historico: firebase.firestore.FieldValue.arrayUnion({ acao: acaoTxt, quando: new Date() })
       });
       mostrarAlerta('✔ Pagamento atualizado!');
@@ -995,7 +1035,9 @@
   }
 
   function valorPagoEfetivo(v) {
-    return v.statusPagamento === 'pago' ? (v.valor || 0) : (v.valorPago || 0);
+    if (v.statusPagamento === 'pago') return v.valor || 0;
+    if (v.pagamentos && v.pagamentos.length) return v.pagamentos.reduce((s, p) => s + (p.valor || 0), 0);
+    return v.valorPago || 0;
   }
 
   async function deletarVenda(id) {
@@ -1174,6 +1216,7 @@
       const itens = v.itens && v.itens.length ? v.itens : [{ produto: v.produto, valor: v.valor }];
       const produtosTxt = itens.map(it => `📦 ${escapar(it.produto)} - ${formatarValor(it.valor)}`).join('<br>');
       const dataRecebimento = v.dataRecebimento || '';
+      const pagamentosArr = v.pagamentos || [];
 
       if (v.id === editandoId) {
         html += `
@@ -1219,20 +1262,21 @@
                   <option value="a_entregar" ${statusEntrega === 'a_entregar' ? 'selected' : ''}>⏳ A Entregar</option>
                   <option value="entregue" ${statusEntrega === 'entregue' ? 'selected' : ''}>✔ Entregue</option>
                 </select>
-                <select class="select-sm" id="selPag-${v.id}">
+                <select class="select-sm" id="selPag-${v.id}" onchange="atualizarStatusPagamento('${v.id}', this.value)">
                   <option value="a_receber" ${statusPagamento === 'a_receber' ? 'selected' : ''}>⏳ A Receber</option>
                   <option value="pago" ${statusPagamento === 'pago' ? 'selected' : ''}>💰 Pago</option>
                 </select>
                 <span class="badge ${lancadoVenda ? 'lancado' : 'nao-lancado'}" onclick="toggleLancadoVenda('${v.id}', ${!lancadoVenda})">${lancadoVenda ? '✔ Venda Lançada' : '○ Venda Não Lançada'}</span>
                 <span class="badge ${lancadoPagamento ? 'lancado' : 'nao-lancado'}" onclick="toggleLancadoPagamento('${v.id}', ${!lancadoPagamento})">${lancadoPagamento ? '✔ Pagto Lançado' : '○ Pagto Não Lançado'}</span>
               </div>
+              ${pagamentosArr.map(p => `<div class="pagamento-linha"><span>💵 ${formatarValor(p.valor)} — ${formatarData(p.data)}</span><button class="btn-remover-pag" onclick="removerPagamento('${v.id}','${p.id}')" title="Remover">✕</button></div>`).join('')}
+              ${!v.pagamentos && dataRecebimento && valorPago > 0 ? `<div class="data-receb-texto">💵 Recebido em ${formatarData(dataRecebimento)}</div>` : ''}
+              ${falta > 0 ? `<div class="falta-texto">Falta pagar: ${formatarValor(falta)}</div>` : ''}
               <div class="pagamento-edit-box">
-                <input type="number" class="input-sm" id="valorPagoEdit-${v.id}" placeholder="Valor recebido (R$)" min="0" step="0.01" value="${valorPago || ''}" />
-                <input type="date" class="input-sm" id="dataRecebEdit-${v.id}" value="${dataRecebimento || new Date().toISOString().slice(0, 10)}" />
-                <button class="btn-salvar-pag" onclick="salvarPagamento('${v.id}')">💾 Salvar Pagamento</button>
+                <input type="number" class="input-sm" id="valorPagoEdit-${v.id}" placeholder="Valor (R$)" min="0" step="0.01" />
+                <input type="date" class="input-sm" id="dataRecebEdit-${v.id}" value="${new Date().toISOString().slice(0, 10)}" />
+                <button class="btn-salvar-pag" onclick="salvarPagamento('${v.id}')">+ Registrar</button>
               </div>
-              ${statusPagamento === 'a_receber' && falta > 0 ? `<div class="falta-texto">Falta pagar: ${formatarValor(falta)}</div>` : ''}
-              ${dataRecebimento && valorPago > 0 ? `<div class="data-receb-texto">💵 Recebido em ${formatarData(dataRecebimento)}</div>` : ''}
             </div>
             <div style="display:flex;align-items:center;gap:4px">
               <div class="valor">${formatarValor(v.valor)}</div>
