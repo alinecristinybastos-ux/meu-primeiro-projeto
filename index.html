@@ -672,6 +672,7 @@
   let itensTemp = [];
   let editandoId = null;
   let itensEdicaoTemp = [];
+  let editandoItemIdx = null;
 
   function normalizar(s) {
     return (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -966,6 +967,7 @@
   function cancelarEdicaoVenda() {
     editandoId = null;
     itensEdicaoTemp = [];
+    editandoItemIdx = null;
     renderVendas();
   }
 
@@ -994,7 +996,12 @@
     const valor = parseFloat(valorEl.value);
     if (!produto) { mostrarAlerta('Informe o produto/serviço do item.', true); return; }
     if (!valor || valor <= 0) { mostrarAlerta('Informe um valor válido para o item.', true); return; }
-    itensEdicaoTemp.push({ produto, valor });
+    if (editandoItemIdx !== null) {
+      itensEdicaoTemp[editandoItemIdx] = { produto, valor };
+      editandoItemIdx = null;
+    } else {
+      itensEdicaoTemp.push({ produto, valor });
+    }
     produtoEl.value = '';
     valorEl.value = '';
     produtoEl.focus();
@@ -1011,8 +1018,8 @@
     if (!it) return;
     document.getElementById(`produtoItemEdicao-${id}`).value = it.produto;
     document.getElementById(`valorItemEdicao-${id}`).value = it.valor;
-    itensEdicaoTemp.splice(idx, 1);
-    renderItensEdicaoBox(id);
+    editandoItemIdx = idx;
+    document.getElementById(`produtoItemEdicao-${id}`).focus();
   }
 
   async function salvarEdicaoVenda(id) {
