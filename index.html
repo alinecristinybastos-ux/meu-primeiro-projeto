@@ -162,6 +162,29 @@
     .btn-relatorio-mini:active { transform: scale(0.97); }
     .btn-relatorio-mini:hover { background: #eef0f2; }
 
+    .summary-featured {
+      background: linear-gradient(135deg, #f5a623, #e0880a);
+      border-radius: 14px;
+      padding: 18px 16px;
+      text-align: center;
+      margin-bottom: 10px;
+      box-shadow: 0 4px 16px rgba(245,166,35,0.35);
+    }
+    .summary-featured .value-featured {
+      font-size: 2rem;
+      font-weight: 800;
+      color: white;
+      letter-spacing: -0.5px;
+    }
+    .summary-featured .label-featured {
+      font-size: 0.7rem;
+      color: rgba(255,255,255,0.88);
+      margin-top: 4px;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+    }
+
     .summary {
       display: flex;
       gap: 10px;
@@ -177,16 +200,17 @@
       box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
 
-    .summary-box .value {
-      font-size: 1.3rem;
-      font-weight: 700;
-      color: #f5a623;
-    }
+    .summary-box .value { font-size: 1.1rem; font-weight: 700; }
+    .summary-box.box-blue .value { color: #1a73e8; }
+    .summary-box.box-pink .value { color: #e91e8c; }
 
     .summary-box .label-sm {
-      font-size: 0.72rem;
+      font-size: 0.65rem;
       color: #888;
       margin-top: 2px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
     }
 
     .sale-item {
@@ -656,14 +680,18 @@
   </div>
 
   <!-- Resumo -->
+  <div class="summary-featured" id="summaryFeatured" style="display:none">
+    <div class="value-featured" id="totalEfetivadoMes">R$ 0</div>
+    <div class="label-featured">Vendas Efetivadas Mês</div>
+  </div>
   <div class="summary" id="summaryArea" style="display:none">
-    <div class="summary-box">
-      <div class="value" id="totalRecebido">R$ 0</div>
-      <div class="label-sm">Vendas Efetivadas Mês</div>
+    <div class="summary-box box-blue">
+      <div class="value" id="totalRecebidoMes">R$ 0</div>
+      <div class="label-sm">Vendas Recebidas Mês</div>
     </div>
-    <div class="summary-box">
+    <div class="summary-box box-pink">
       <div class="value" id="totalAReceber">R$ 0</div>
-      <div class="label-sm">Total Vendas a Receber</div>
+      <div class="label-sm">Vendas a Receber</div>
     </div>
   </div>
 
@@ -1157,6 +1185,7 @@
     if (todasVendas.length === 0) {
       lista.innerHTML = '<div class="empty"><span>📋</span>Nenhuma venda registrada ainda.</div>';
       summary.style.display = 'none';
+      document.getElementById('summaryFeatured').style.display = 'none';
       botoes.style.display = 'none';
       document.getElementById('filtroDataRow').style.display = 'none';
       filtroRow.style.display = 'none';
@@ -1168,15 +1197,27 @@
     filtroRow.style.display = 'flex';
     filtroCliente.style.display = 'block';
     summary.style.display = 'flex';
+    document.getElementById('summaryFeatured').style.display = 'block';
     botoes.style.display = 'flex';
     document.getElementById('filtroDataRow').style.display = 'flex';
 
     todosClientesNomes = [...new Set(todasVendas.map(v => v.cliente).filter(Boolean))].sort();
     const _anoMesAtual = new Date().toISOString().slice(0, 7);
-    const totalVendasMes = vendas.reduce((s, v) =>
+
+    const totalVendasMes = todasVendas.reduce((s, v) =>
       (v.data || '').slice(0, 7) === _anoMesAtual ? s + (v.valor || 0) : s, 0);
-    const totalAReceber = vendas.reduce((s, v) => s + Math.max((v.valor || 0) - valorPagoEfetivo(v), 0), 0);
-    document.getElementById('totalRecebido').textContent = formatarValor(totalVendasMes);
+
+    const totalRecebidoMes = todasVendas.reduce((s, v) => {
+      const arr = v.pagamentos;
+      if (arr && arr.length) return s + arr.filter(p => (p.data || '').slice(0, 7) === _anoMesAtual).reduce((a, p) => a + (p.valor || 0), 0);
+      if ((v.dataRecebimento || '').slice(0, 7) === _anoMesAtual) return s + (v.valorPago || 0);
+      return s;
+    }, 0);
+
+    const totalAReceber = todasVendas.reduce((s, v) => s + Math.max((v.valor || 0) - valorPagoEfetivo(v), 0), 0);
+
+    document.getElementById('totalEfetivadoMes').textContent = formatarValor(totalVendasMes);
+    document.getElementById('totalRecebidoMes').textContent = formatarValor(totalRecebidoMes);
     document.getElementById('totalAReceber').textContent = formatarValor(totalAReceber);
 
     if (vendas.length === 0) {
