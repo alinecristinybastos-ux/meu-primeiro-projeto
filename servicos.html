@@ -195,9 +195,9 @@
 
     .srv-info { flex: 1; min-width: 0; }
 
-    .srv-tipo   { font-weight: 700; font-size: 0.95rem; }
-    .srv-cliente { font-size: 0.85rem; color: #555; margin-top: 2px; }
-    .srv-data   { font-size: 0.75rem; color: #aaa; margin-top: 3px; }
+    .srv-cliente { font-weight: 700; font-size: 1.05rem; color: #222; }
+    .srv-tipo    { font-size: 0.80rem; color: #888; margin-top: 2px; }
+    .srv-data    { font-size: 0.75rem; color: #aaa; margin-top: 3px; }
 
     .srv-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 
@@ -214,7 +214,11 @@
     .badge.concluido { background: #e6f4ea; color: #34a853; }
     .badge.recebido  { background: #e6f4ea; color: #34a853; }
     .badge.parcial   { background: #e8f0fe; color: #1a73e8; cursor: pointer; }
-    .badge.a_receber { background: #fff4e0; color: #c47d00; cursor: pointer; }
+    .badge.a_receber { background: #fce8e6; color: #ea4335; cursor: pointer; }
+    .srv-card.pendente { border-left: 4px solid #ea4335; }
+    .lucro-box { font-size: 0.80rem; margin-top: 6px; font-weight: 700; }
+    .lucro-pos { color: #34a853; }
+    .lucro-neg { color: #ea4335; }
     .badge.lancado    { background: #e6f4ea; color: #34a853; cursor: pointer; border: none; }
     .badge.nao-lancado { background: #f0f4f8; color: #888; cursor: pointer; border: none; }
 
@@ -1457,6 +1461,9 @@
         ? 'recebido'
         : (totalPago > 0 ? 'parcial' : 'a_receber');
       const lancado = !!s.lancado;
+      const totalViagensValor = minhasViagens.reduce((a, v) => a + (v.valor || 0) * (v.quantidade || 0), 0);
+      const totalDespesasValor = minhasDespesas.reduce((a, d) => a + (d.valor || 0), 0);
+      const lucro = valorEfetivo - totalViagensValor - totalDespesasValor;
 
       let tabelaPagamentos = '';
       if (meusPagamentos.length > 0) {
@@ -1554,11 +1561,11 @@
       }
 
       html += `
-        <div class="srv-card ${s.status || ''}">
+        <div class="srv-card ${s.status || ''}${falta > 0 ? ' pendente' : ''}">
           <div class="srv-header">
             <div class="srv-info">
-              <div class="srv-tipo">${escapar(s.tipo)}</div>
               <div class="srv-cliente">👤 ${escapar(s.cliente)}</div>
+              <div class="srv-tipo">${escapar(s.tipo)}</div>
               <div class="srv-data">📅 Início: ${formatarData(s.dataInicio)}</div>
               ${valorEfetivo ? `<div class="srv-valor">${formatarValor(valorEfetivo)}
                 ${s.tipoCobranca === 'viagem' ? `<span style="font-size:0.7em;color:#888">(${formatarValor(s.valorViagem || 0)} × ${totalViagens} viagens)</span>` : ''}
@@ -1574,7 +1581,8 @@
                 <span class="badge ${statusPagamento}"${statusPagamento !== 'recebido' ? ` onclick="abrirModalPagamento('${s.id}')" title="Clique para registrar pagamento"` : ''}>${statusPagLabel[statusPagamento]}</span>
                 <span class="badge ${lancado ? 'lancado' : 'nao-lancado'}" onclick="toggleLancado('${s.id}', ${!lancado})">${lancado ? '✔ Lançado no Sistema' : '○ Não Lançado'}</span>
               </div>
-              ${falta > 0 ? `<div class="falta-texto">Falta pagar: ${formatarValor(falta)}</div>` : ''}
+              ${falta > 0 ? `<div class="falta-texto">⚠️ Falta receber: ${formatarValor(falta)}</div>` : ''}
+              ${valorEfetivo > 0 ? `<div class="lucro-box ${lucro >= 0 ? 'lucro-pos' : 'lucro-neg'}">💰 Lucro: ${formatarValor(lucro)}</div>` : ''}
             </div>
             <div class="srv-right">
               <span class="badge ${s.status || ''}">${statusLabel[s.status] || s.status}</span>
