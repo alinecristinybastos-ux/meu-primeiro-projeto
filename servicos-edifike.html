@@ -732,6 +732,7 @@
   let formsAbastecimentoAbertos = new Set();
   let formsDespesasAbertos = new Set();
   let editandoServicoId = null;
+  let editandoViagemId = null;
   let itensServicoTemp = [];
   let itensServicoEdicaoTemp = [];
 
@@ -1045,29 +1046,30 @@
     }
   }
 
-  async function editarQuantidadeViagem(id, atual) {
-    const novo = prompt('Nova quantidade de viagens:', atual);
-    if (novo === null) return;
-    const qtd = parseInt(novo);
-    if (!qtd || qtd < 1) { mostrarAlerta('Quantidade inválida.', true); return; }
-    try {
-      await db.collection('viagens').doc(id).update({ quantidade: qtd });
-      mostrarAlerta('✔ Quantidade atualizada!');
-    } catch {
-      mostrarAlerta('Erro ao atualizar.', true);
-    }
+  function iniciarEdicaoViagem(id) {
+    editandoViagemId = id;
+    renderTudo();
   }
 
-  async function editarValorViagem(id, atual) {
-    const novo = prompt('Novo valor do frete por viagem (R$):', atual);
-    if (novo === null) return;
-    const valor = parseFloat(novo.replace(',', '.'));
-    if (isNaN(valor) || valor < 0) { mostrarAlerta('Valor inválido.', true); return; }
+  function cancelarEdicaoViagem() {
+    editandoViagemId = null;
+    renderTudo();
+  }
+
+  async function salvarEdicaoViagem(id) {
+    const prop  = document.getElementById(`editProp_${id}`).value.trim();
+    const qtd   = parseInt(document.getElementById(`editQtd_${id}`).value) || 0;
+    const valor = parseFloat(document.getElementById(`editValor_${id}`).value) || 0;
+    const data  = document.getElementById(`editDataViagem_${id}`).value;
+    if (!prop)  { mostrarAlerta('Informe o nome do proprietário.', true); return; }
+    if (qtd < 1){ mostrarAlerta('Informe a quantidade de viagens.', true); return; }
+    if (!data)  { mostrarAlerta('Informe a data.', true); return; }
     try {
-      await db.collection('viagens').doc(id).update({ valor });
-      mostrarAlerta('✔ Valor do frete atualizado!');
+      await db.collection('viagens').doc(id).update({ proprietario: prop, quantidade: qtd, valor, data });
+      editandoViagemId = null;
+      mostrarAlerta('✔ Viagem atualizada!');
     } catch {
-      mostrarAlerta('Erro ao atualizar.', true);
+      mostrarAlerta('Erro ao atualizar viagem.', true);
     }
   }
 
@@ -1344,19 +1346,33 @@
         let linhas = '';
         for (const v of minhasViagens) {
           const totalViagem = (v.valor || 0) * (v.quantidade || 0);
-          linhas += `
-            <tr>
-              <td>${escapar(v.proprietario)}</td>
-              <td style="text-align:center;font-weight:700;color:#f5a623">${v.quantidade}</td>
-              <td>${formatarValor(v.valor || 0)}</td>
-              <td style="font-weight:700">${formatarValor(totalViagem)}</td>
-              <td>${formatarData(v.data)}</td>
-              <td class="del-cell">
-                <button class="edit-btn" onclick="editarQuantidadeViagem('${v.id}', ${v.quantidade})" title="Editar quantidade">✏️</button>
-                <button class="edit-btn" onclick="editarValorViagem('${v.id}', ${v.valor || 0})" title="Editar valor do frete">💰</button>
-                <button class="delete-btn" onclick="deletarViagem('${v.id}')" title="Remover viagem">✕</button>
-              </td>
-            </tr>`;
+          if (editandoViagemId === v.id) {
+            linhas += `
+              <tr>
+                <td><input type="text" id="editProp_${v.id}" value="${escapar(v.proprietario)}" style="width:100%;padding:2px 4px;border:1px solid #ccc;border-radius:4px;font-size:0.82rem" /></td>
+                <td><input type="number" id="editQtd_${v.id}" value="${v.quantidade}" min="1" style="width:56px;padding:2px 4px;border:1px solid #ccc;border-radius:4px;font-size:0.82rem" /></td>
+                <td><input type="number" id="editValor_${v.id}" value="${v.valor || ''}" min="0" step="0.01" style="width:80px;padding:2px 4px;border:1px solid #ccc;border-radius:4px;font-size:0.82rem" /></td>
+                <td style="color:#bbb;font-size:0.75rem">auto</td>
+                <td><input type="date" id="editDataViagem_${v.id}" value="${v.data || ''}" style="padding:2px 4px;border:1px solid #ccc;border-radius:4px;font-size:0.82rem" /></td>
+                <td class="del-cell">
+                  <button class="btn-add-viagem" style="padding:4px 8px;font-size:0.75rem;margin:0" onclick="salvarEdicaoViagem('${v.id}')">💾 Salvar</button>
+                  <button class="delete-btn" onclick="cancelarEdicaoViagem()" title="Cancelar">✕</button>
+                </td>
+              </tr>`;
+          } else {
+            linhas += `
+              <tr>
+                <td>${escapar(v.proprietario)}</td>
+                <td style="text-align:center;font-weight:700;color:#f5a623">${v.quantidade}</td>
+                <td>${formatarValor(v.valor || 0)}</td>
+                <td style="font-weight:700">${formatarValor(totalViagem)}</td>
+                <td>${formatarData(v.data)}</td>
+                <td class="del-cell">
+                  <button class="edit-btn" onclick="iniciarEdicaoViagem('${v.id}')" title="Editar viagem">✏️</button>
+                  <button class="delete-btn" onclick="deletarViagem('${v.id}')" title="Remover viagem">✕</button>
+                </td>
+              </tr>`;
+          }
         }
         tabelaViagens = `
           <table>
