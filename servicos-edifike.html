@@ -519,6 +519,45 @@
       text-align: center;
       padding: 8px 0 4px;
     }
+
+    .btn-add-item {
+      margin-top: 10px;
+      padding: 8px 14px;
+      background: #34a853;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-add-item:hover { opacity: 0.9; }
+    .itens-box { margin-top: 8px; }
+    .item-linha {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 0;
+      border-bottom: 1px solid #f0f4f8;
+    }
+    .item-nome { flex: 1; font-size: 0.85rem; color: #444; }
+    .item-valor { font-size: 0.85rem; font-weight: 700; color: #34a853; white-space: nowrap; }
+    .item-remove {
+      background: none;
+      border: none;
+      color: #ccc;
+      font-size: 0.85rem;
+      cursor: pointer;
+      padding: 0 2px;
+    }
+    .item-remove:hover { color: #ea4335; }
+    .itens-total {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #f5a623;
+      padding: 6px 0 2px;
+      text-align: right;
+    }
   </style>
 </head>
 <body>
@@ -585,12 +624,24 @@
     </div>
 
     <div id="valorCarradaBox" style="display:none">
-      <label>Quantidade de Carradas</label>
-      <input type="number" id="qtdCarradas" placeholder="0" min="0" />
-      <label>Valor por Carrada (R$)</label>
-      <input type="number" id="valorPorCarrada" placeholder="0,00" min="0" step="0.01" />
-      <label>Outros Serviços (R$) — ex: aluguel rolo, material</label>
-      <input type="number" id="outrosServicos" placeholder="0,00" min="0" step="0.01" />
+      <div class="row">
+        <div style="flex:2">
+          <label style="margin-top:0">Descrição do Item</label>
+          <input type="text" id="itemDescServico" placeholder="Ex: Carrada de areia, Aluguel rolo..." />
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label style="margin-top:0">Quantidade</label>
+          <input type="number" id="itemQtdServico" placeholder="1" min="0" step="0.01" />
+        </div>
+        <div>
+          <label style="margin-top:0">Valor Unitário (R$)</label>
+          <input type="number" id="itemValorServico" placeholder="0,00" min="0" step="0.01" />
+        </div>
+      </div>
+      <button type="button" class="btn-add-item" onclick="adicionarItemServico()">+ Adicionar Item</button>
+      <div class="itens-box" id="itensServicoBox"></div>
     </div>
 
     <div class="row">
@@ -607,6 +658,9 @@
         </select>
       </div>
     </div>
+
+    <label>Desconto (R$) — opcional</label>
+    <input type="number" id="descontoServico" placeholder="0,00" min="0" step="0.01" />
 
     <label>Observações (opcional)</label>
     <textarea id="obs" placeholder="Alguma observação sobre o serviço..."></textarea>
@@ -678,6 +732,8 @@
   let formsAbastecimentoAbertos = new Set();
   let formsDespesasAbertos = new Set();
   let editandoServicoId = null;
+  let itensServicoTemp = [];
+  let itensServicoEdicaoTemp = [];
 
   window.onload = function () {
     document.getElementById('dataInicio').value = new Date().toISOString().slice(0, 10);
@@ -735,11 +791,13 @@
     const tipo      = document.getElementById('tipo').value.trim();
     const cliente   = document.getElementById('cliente').value.trim();
     const tipoCobranca = document.getElementById('tipoCobranca').value;
-    const valor       = tipoCobranca === 'viagem' || tipoCobranca === 'carrada' ? 0 : (parseFloat(document.getElementById('valor').value) || 0);
+    const desconto  = parseFloat(document.getElementById('descontoServico').value) || 0;
+    const itensServico = tipoCobranca === 'carrada' ? itensServicoTemp.map(it => ({...it})) : [];
+    const valor = tipoCobranca === 'empreitada'
+        ? (parseFloat(document.getElementById('valor').value) || 0)
+        : tipoCobranca === 'viagem' ? 0
+        : Math.max(totalItensServico() - desconto, 0);
     const valorViagem = tipoCobranca === 'viagem' ? (parseFloat(document.getElementById('valorViagem').value) || 0) : 0;
-    const qtdCarradas    = tipoCobranca === 'carrada' ? (parseFloat(document.getElementById('qtdCarradas').value) || 0) : 0;
-    const valorPorCarrada= tipoCobranca === 'carrada' ? (parseFloat(document.getElementById('valorPorCarrada').value) || 0) : 0;
-    const outrosServicos = tipoCobranca === 'carrada' ? (parseFloat(document.getElementById('outrosServicos').value) || 0) : 0;
     const dataInicio = document.getElementById('dataInicio').value;
     const status    = document.getElementById('status').value;
     const obs       = document.getElementById('obs').value.trim();
@@ -755,7 +813,7 @@
 
     try {
       await db.collection('servicos').add({
-        vendedor, tipo, cliente, tipoCobranca, valor, valorViagem, qtdCarradas, valorPorCarrada, outrosServicos, dataInicio, status, obs,
+        vendedor, tipo, cliente, tipoCobranca, valor, valorViagem, itensServico, desconto, dataInicio, status, obs,
         pagamentos: [], lancado: false,
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
       });
@@ -764,13 +822,13 @@
       document.getElementById('cliente').value = '';
       document.getElementById('valor').value   = '';
       document.getElementById('valorViagem').value = '';
-      document.getElementById('qtdCarradas').value = '';
-      document.getElementById('valorPorCarrada').value = '';
-      document.getElementById('outrosServicos').value = '';
       document.getElementById('tipoCobranca').value = 'empreitada';
       toggleTipoCobranca();
       document.getElementById('status').value  = 'andamento';
+      document.getElementById('descontoServico').value = '';
       document.getElementById('obs').value = '';
+      itensServicoTemp = [];
+      renderItensServicoBox();
       mostrarAlerta('✔ Serviço registrado!');
     } catch {
       mostrarAlerta('Erro ao salvar. Verifique a conexão.', true);
@@ -845,12 +903,17 @@
   }
 
   function iniciarEdicaoServico(id) {
+    const s = servicos.find(x => x.id === id);
+    if (s) {
+      itensServicoEdicaoTemp = (s.itensServico || []).map(it => ({...it}));
+    }
     editandoServicoId = id;
     renderTudo();
   }
 
   function cancelarEdicaoServico() {
     editandoServicoId = null;
+    itensServicoEdicaoTemp = [];
     renderTudo();
   }
 
@@ -858,11 +921,13 @@
     const tipo      = document.getElementById(`tipoEdicao_${id}`).value.trim();
     const cliente   = document.getElementById(`clienteEdicao_${id}`).value.trim();
     const tipoCobranca = document.getElementById(`tipoCobrancaEdicao_${id}`).value;
-    const valor       = tipoCobranca === 'viagem' || tipoCobranca === 'carrada' ? 0 : (parseFloat(document.getElementById(`valorEdicao_${id}`).value) || 0);
+    const descontoEdicao = parseFloat(document.getElementById(`descontoEdicao_${id}`).value) || 0;
+    const itensServico = tipoCobranca === 'carrada' ? itensServicoEdicaoTemp.map(it => ({...it})) : [];
+    const valor = tipoCobranca === 'empreitada'
+        ? (parseFloat(document.getElementById(`valorEdicao_${id}`).value) || 0)
+        : tipoCobranca === 'viagem' ? 0
+        : Math.max(totalItensServicoEdicao() - descontoEdicao, 0);
     const valorViagem = tipoCobranca === 'viagem' ? (parseFloat(document.getElementById(`valorViagemEdicao_${id}`).value) || 0) : 0;
-    const qtdCarradas    = tipoCobranca === 'carrada' ? (parseFloat(document.getElementById(`qtdCarradasEdicao_${id}`).value) || 0) : 0;
-    const valorPorCarrada= tipoCobranca === 'carrada' ? (parseFloat(document.getElementById(`valorPorCarradaEdicao_${id}`).value) || 0) : 0;
-    const outrosServicos = tipoCobranca === 'carrada' ? (parseFloat(document.getElementById(`outrosServicosEdicao_${id}`).value) || 0) : 0;
     const dataInicio = document.getElementById(`dataInicioEdicao_${id}`).value;
     const status    = document.getElementById(`statusEdicao_${id}`).value;
     const obs       = document.getElementById(`obsEdicao_${id}`).value.trim();
@@ -876,10 +941,11 @@
 
     try {
       await db.collection('servicos').doc(id).update({
-        tipo, cliente, tipoCobranca, valor, valorViagem, qtdCarradas, valorPorCarrada, outrosServicos, dataInicio, status, obs,
+        tipo, cliente, tipoCobranca, valor, valorViagem, itensServico, desconto: descontoEdicao, dataInicio, status, obs,
         historico: firebase.firestore.FieldValue.arrayUnion({ acao, quando: new Date() })
       });
       editandoServicoId = null;
+      itensServicoEdicaoTemp = [];
       mostrarAlerta('✔ Serviço atualizado!');
     } catch {
       mostrarAlerta('Erro ao atualizar serviço.', true);
@@ -1126,6 +1192,74 @@
     }
   }
 
+  function adicionarItemServico() {
+    const desc = document.getElementById('itemDescServico').value.trim();
+    const qtd = parseFloat(document.getElementById('itemQtdServico').value) || 1;
+    const valorUnit = parseFloat(document.getElementById('itemValorServico').value) || 0;
+    if (!desc) { mostrarAlerta('Informe a descrição do item.', true); return; }
+    if (valorUnit <= 0) { mostrarAlerta('Informe o valor unitário.', true); return; }
+    itensServicoTemp.push({ id: 'it_' + Date.now(), descricao: desc, qtd, valorUnit });
+    document.getElementById('itemDescServico').value = '';
+    document.getElementById('itemQtdServico').value = '';
+    document.getElementById('itemValorServico').value = '';
+    renderItensServicoBox();
+  }
+
+  function removerItemServico(idx) {
+    itensServicoTemp.splice(idx, 1);
+    renderItensServicoBox();
+  }
+
+  function totalItensServico() {
+    return itensServicoTemp.reduce((s, it) => s + (it.qtd || 1) * (it.valorUnit || 0), 0);
+  }
+
+  function renderItensServicoBox() {
+    const box = document.getElementById('itensServicoBox');
+    if (!box) return;
+    if (itensServicoTemp.length === 0) { box.innerHTML = ''; return; }
+    box.innerHTML = itensServicoTemp.map((it, idx) => `
+      <div class="item-linha">
+        <div class="item-nome">${escapar(it.descricao)}${it.qtd !== 1 ? ` (${it.qtd}×)` : ''}</div>
+        <div class="item-valor">${formatarValor((it.qtd || 1) * (it.valorUnit || 0))}</div>
+        <button type="button" class="item-remove" onclick="removerItemServico(${idx})" title="Remover">✕</button>
+      </div>`).join('') + `<div class="itens-total">Subtotal: ${formatarValor(totalItensServico())}</div>`;
+  }
+
+  function adicionarItemServicoEdicao(servicoId) {
+    const desc = document.getElementById(`itemDescEdicao_${servicoId}`).value.trim();
+    const qtd = parseFloat(document.getElementById(`itemQtdEdicao_${servicoId}`).value) || 1;
+    const valorUnit = parseFloat(document.getElementById(`itemValorEdicao_${servicoId}`).value) || 0;
+    if (!desc) { mostrarAlerta('Informe a descrição do item.', true); return; }
+    if (valorUnit <= 0) { mostrarAlerta('Informe o valor.', true); return; }
+    itensServicoEdicaoTemp.push({ id: 'it_' + Date.now(), descricao: desc, qtd, valorUnit });
+    document.getElementById(`itemDescEdicao_${servicoId}`).value = '';
+    document.getElementById(`itemQtdEdicao_${servicoId}`).value = '';
+    document.getElementById(`itemValorEdicao_${servicoId}`).value = '';
+    renderItensServicoEdicaoBox(servicoId);
+  }
+
+  function removerItemServicoEdicao(idx, servicoId) {
+    itensServicoEdicaoTemp.splice(idx, 1);
+    renderItensServicoEdicaoBox(servicoId);
+  }
+
+  function totalItensServicoEdicao() {
+    return itensServicoEdicaoTemp.reduce((s, it) => s + (it.qtd || 1) * (it.valorUnit || 0), 0);
+  }
+
+  function renderItensServicoEdicaoBox(servicoId) {
+    const box = document.getElementById(`itensServicoEdicaoBox_${servicoId}`);
+    if (!box) return;
+    if (itensServicoEdicaoTemp.length === 0) { box.innerHTML = ''; return; }
+    box.innerHTML = itensServicoEdicaoTemp.map((it, idx) => `
+      <div class="item-linha">
+        <div class="item-nome">${escapar(it.descricao)}${it.qtd !== 1 ? ` (${it.qtd}×)` : ''}</div>
+        <div class="item-valor">${formatarValor((it.qtd || 1) * (it.valorUnit || 0))}</div>
+        <button type="button" class="item-remove" onclick="removerItemServicoEdicao(${idx}, '${servicoId}')" title="Remover">✕</button>
+      </div>`).join('') + `<div class="itens-total">Subtotal: ${formatarValor(totalItensServicoEdicao())}</div>`;
+  }
+
   function renderTudo() {
     const lista              = document.getElementById('listaServicos');
     const summary            = document.getElementById('summaryArea');
@@ -1155,8 +1289,14 @@
       const valorEfetivoS = s.tipoCobranca === 'viagem'
           ? (s.valorViagem || 0) * totalViagensS
           : s.tipoCobranca === 'carrada'
-              ? (s.qtdCarradas || 0) * (s.valorPorCarrada || 0) + (s.outrosServicos || 0)
-              : (s.valor || 0);
+              ? (() => {
+                  if (s.itensServico && s.itensServico.length) {
+                      const sub = s.itensServico.reduce((a, it) => a + (it.qtd || 1) * (it.valorUnit || 0), 0);
+                      return Math.max(sub - (s.desconto || 0), 0);
+                  }
+                  return (s.qtdCarradas || 0) * (s.valorPorCarrada || 0) + (s.outrosServicos || 0);
+              })()
+          : Math.max((s.valor || 0) - (s.desconto || 0), 0);
       const totalPagoS = (s.pagamentos || []).reduce((a, p) => a + (p.valor || 0), 0);
       totalRecebidoGeral += totalPagoS;
       totalAReceberGeral += Math.max(valorEfetivoS - totalPagoS, 0);
@@ -1187,8 +1327,14 @@
       const valorEfetivo  = s.tipoCobranca === 'viagem'
           ? (s.valorViagem || 0) * totalViagens
           : s.tipoCobranca === 'carrada'
-              ? (s.qtdCarradas || 0) * (s.valorPorCarrada || 0) + (s.outrosServicos || 0)
-              : (s.valor || 0);
+              ? (() => {
+                  if (s.itensServico && s.itensServico.length) {
+                      const sub = s.itensServico.reduce((a, it) => a + (it.qtd || 1) * (it.valorUnit || 0), 0);
+                      return Math.max(sub - (s.desconto || 0), 0);
+                  }
+                  return (s.qtdCarradas || 0) * (s.valorPorCarrada || 0) + (s.outrosServicos || 0);
+              })()
+          : Math.max((s.valor || 0) - (s.desconto || 0), 0);
       const formAberto    = formsAbertos.has(s.id);
       const formAbastecimentoAberto = formsAbastecimentoAbertos.has(s.id);
       const formDespesasAberto = formsDespesasAbertos.has(s.id);
@@ -1351,12 +1497,24 @@
                     <input type="number" id="valorViagemEdicao_${s.id}" value="${s.valorViagem || ''}" min="0" step="0.01" />
                   </div>
                   <div id="valorCarradaBoxEdicao_${s.id}" style="${s.tipoCobranca === 'carrada' ? '' : 'display:none'}">
-                    <label>Quantidade de Carradas</label>
-                    <input type="number" id="qtdCarradasEdicao_${s.id}" value="${s.qtdCarradas || ''}" min="0" />
-                    <label>Valor por Carrada (R$)</label>
-                    <input type="number" id="valorPorCarradaEdicao_${s.id}" value="${s.valorPorCarrada || ''}" min="0" step="0.01" />
-                    <label>Outros Serviços (R$)</label>
-                    <input type="number" id="outrosServicosEdicao_${s.id}" value="${s.outrosServicos || ''}" min="0" step="0.01" />
+                    <div class="itens-box" id="itensServicoEdicaoBox_${s.id}"></div>
+                    <div class="row">
+                      <div style="flex:2">
+                        <label style="margin-top:8px">Descrição do Item</label>
+                        <input type="text" id="itemDescEdicao_${s.id}" placeholder="Ex: Carrada, Aluguel rolo..." />
+                      </div>
+                    </div>
+                    <div class="row">
+                      <div>
+                        <label style="margin-top:0">Quantidade</label>
+                        <input type="number" id="itemQtdEdicao_${s.id}" placeholder="1" min="0" step="0.01" />
+                      </div>
+                      <div>
+                        <label style="margin-top:0">Valor Unitário (R$)</label>
+                        <input type="number" id="itemValorEdicao_${s.id}" placeholder="0,00" min="0" step="0.01" />
+                      </div>
+                    </div>
+                    <button type="button" class="btn-add-item" onclick="adicionarItemServicoEdicao('${s.id}')">+ Adicionar Item</button>
                   </div>
                   <div>
                     <label>Data de Início</label>
@@ -1369,6 +1527,8 @@
                   <option value="parado"    ${s.status === 'parado'    ? 'selected' : ''}>⛔ Parado</option>
                   <option value="concluido" ${s.status === 'concluido' ? 'selected' : ''}>✅ Concluído</option>
                 </select>
+                <label>Desconto (R$) — opcional</label>
+                <input type="number" id="descontoEdicao_${s.id}" value="${s.desconto || ''}" min="0" step="0.01" />
                 <label>Observações</label>
                 <textarea id="obsEdicao_${s.id}">${escapar(s.obs || '')}</textarea>
                 <button class="btn-salvar-edicao" onclick="salvarEdicaoServico('${s.id}')">💾 Salvar Alterações</button>
@@ -1386,13 +1546,14 @@
               <div class="srv-tipo">${escapar(s.tipo)}</div>
               <div class="srv-cliente">👤 ${escapar(s.cliente)}</div>
               <div class="srv-data">📅 Início: ${formatarData(s.dataInicio)}</div>
-              ${valorEfetivo ? `<div class="srv-valor">${formatarValor(valorEfetivo)}${
-                  s.tipoCobranca === 'viagem'
-                      ? ` <span style="font-size:0.7em;color:#888">(${formatarValor(s.valorViagem || 0)} × ${totalViagens} viagens)</span>`
-                  : s.tipoCobranca === 'carrada'
-                      ? ` <span style="font-size:0.7em;color:#888">(${s.qtdCarradas || 0} carradas × ${formatarValor(s.valorPorCarrada || 0)}${s.outrosServicos ? ` + ${formatarValor(s.outrosServicos)} outros` : ''})</span>`
-                  : ''
-              }</div>` : ''}
+              ${valorEfetivo ? `<div class="srv-valor">${formatarValor(valorEfetivo)}
+                ${s.tipoCobranca === 'viagem' ? `<span style="font-size:0.7em;color:#888">(${formatarValor(s.valorViagem || 0)} × ${totalViagens} viagens)</span>` : ''}
+                ${s.tipoCobranca === 'carrada' && s.itensServico && s.itensServico.length ? `<span style="font-size:0.7em;color:#888">(${s.itensServico.length} itens${s.desconto ? ` — desconto: ${formatarValor(s.desconto)}` : ''})</span>` : ''}
+                ${s.desconto && s.tipoCobranca !== 'carrada' ? `<span style="font-size:0.7em;color:#888">(desconto: ${formatarValor(s.desconto)})</span>` : ''}
+              </div>` : ''}
+              ${s.tipoCobranca === 'carrada' && s.itensServico && s.itensServico.length ?
+                  s.itensServico.map(it => `<div class="srv-cliente" style="color:#555;font-size:0.78rem">📦 ${escapar(it.descricao)} — ${it.qtd}× ${formatarValor(it.valorUnit)} = ${formatarValor((it.qtd||1)*(it.valorUnit||0))}</div>`).join('')
+                  : ''}
               ${s.vendedor ? `<span class="vendedor-tag">🧑‍💼 ${escapar(s.vendedor)}</span>` : ''}
               ${s.obs ? `<div class="srv-cliente" style="color:#888">💬 ${escapar(s.obs)}</div>` : ''}
               <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
@@ -1529,6 +1690,7 @@
     }
 
     lista.innerHTML = html;
+    if (editandoServicoId) renderItensServicoEdicaoBox(editandoServicoId);
   }
 
   function carregarLogoBase64() {
