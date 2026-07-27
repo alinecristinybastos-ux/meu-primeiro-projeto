@@ -333,6 +333,7 @@
     .viagens-section {
       border-top: 1px solid #f0f4f8;
       padding: 0 16px 14px;
+      overflow-x: auto;
     }
 
     .viagens-titulo {
@@ -1349,13 +1350,12 @@
           if (editandoViagemId === v.id) {
             linhas += `
               <tr>
-                <td><input type="text" id="editProp_${v.id}" value="${escapar(v.proprietario)}" style="width:100%;padding:2px 4px;border:1px solid #ccc;border-radius:4px;font-size:0.82rem" /></td>
-                <td><input type="number" id="editQtd_${v.id}" value="${v.quantidade}" min="1" style="width:56px;padding:2px 4px;border:1px solid #ccc;border-radius:4px;font-size:0.82rem" /></td>
-                <td><input type="number" id="editValor_${v.id}" value="${v.valor || ''}" min="0" step="0.01" style="width:80px;padding:2px 4px;border:1px solid #ccc;border-radius:4px;font-size:0.82rem" /></td>
-                <td style="color:#bbb;font-size:0.75rem">auto</td>
+                <td><input type="text" id="editProp_${v.id}" value="${escapar(v.proprietario)}" style="width:100%;min-width:90px;padding:2px 4px;border:1px solid #ccc;border-radius:4px;font-size:0.82rem" /></td>
+                <td><input type="number" id="editQtd_${v.id}" value="${v.quantidade}" min="1" style="width:52px;padding:2px 4px;border:1px solid #ccc;border-radius:4px;font-size:0.82rem" /></td>
+                <td><input type="number" id="editValor_${v.id}" value="${v.valor || ''}" min="0" step="0.01" style="width:72px;padding:2px 4px;border:1px solid #ccc;border-radius:4px;font-size:0.82rem" /></td>
                 <td><input type="date" id="editDataViagem_${v.id}" value="${v.data || ''}" style="padding:2px 4px;border:1px solid #ccc;border-radius:4px;font-size:0.82rem" /></td>
-                <td class="del-cell">
-                  <button class="btn-add-viagem" style="padding:4px 8px;font-size:0.75rem;margin:0" onclick="salvarEdicaoViagem('${v.id}')">💾 Salvar</button>
+                <td class="del-cell" style="white-space:nowrap">
+                  <button class="btn-add-viagem" style="padding:4px 8px;font-size:0.75rem;margin:0" onclick="salvarEdicaoViagem('${v.id}')">💾</button>
                   <button class="delete-btn" onclick="cancelarEdicaoViagem()" title="Cancelar">✕</button>
                 </td>
               </tr>`;
@@ -1364,10 +1364,9 @@
               <tr>
                 <td>${escapar(v.proprietario)}</td>
                 <td style="text-align:center;font-weight:700;color:#f5a623">${v.quantidade}</td>
-                <td>${formatarValor(v.valor || 0)}</td>
-                <td style="font-weight:700">${formatarValor(totalViagem)}</td>
+                <td>${formatarValor(v.valor || 0)}<br><span style="font-size:0.72rem;color:#888">= ${formatarValor(totalViagem)}</span></td>
                 <td>${formatarData(v.data)}</td>
-                <td class="del-cell">
+                <td class="del-cell" style="white-space:nowrap">
                   <button class="edit-btn" onclick="iniciarEdicaoViagem('${v.id}')" title="Editar viagem">✏️</button>
                   <button class="delete-btn" onclick="deletarViagem('${v.id}')" title="Remover viagem">✕</button>
                 </td>
@@ -1378,10 +1377,9 @@
           <table>
             <thead>
               <tr>
-                <th>Proprietário do Caminhão</th>
-                <th style="text-align:center">Qtd. Viagens</th>
+                <th>Proprietário</th>
+                <th style="text-align:center">Qtd.</th>
                 <th>Valor/Viagem</th>
-                <th>Total Frete</th>
                 <th>Data</th>
                 <th></th>
               </tr>
