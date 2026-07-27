@@ -571,6 +571,7 @@
     <select id="tipoCobranca" onchange="toggleTipoCobranca()">
       <option value="empreitada">📋 Empreitada (valor fixo)</option>
       <option value="viagem">🚛 Por Viagem</option>
+      <option value="carrada">🪨 Por Carrada</option>
     </select>
 
     <div id="valorEmpreitadaBox">
@@ -581,6 +582,15 @@
     <div id="valorViagemBox" style="display:none">
       <label>Valor por Viagem (R$)</label>
       <input type="number" id="valorViagem" placeholder="0,00" min="0" step="0.01" />
+    </div>
+
+    <div id="valorCarradaBox" style="display:none">
+      <label>Quantidade de Carradas</label>
+      <input type="number" id="qtdCarradas" placeholder="0" min="0" />
+      <label>Valor por Carrada (R$)</label>
+      <input type="number" id="valorPorCarrada" placeholder="0,00" min="0" step="0.01" />
+      <label>Outros Serviços (R$) — ex: aluguel rolo, material</label>
+      <input type="number" id="outrosServicos" placeholder="0,00" min="0" step="0.01" />
     </div>
 
     <div class="row">
@@ -666,6 +676,7 @@
   let filtroAtual = 'todos';
   let formsAbertos = new Set();
   let formsAbastecimentoAbertos = new Set();
+  let formsDespesasAbertos = new Set();
   let editandoServicoId = null;
 
   window.onload = function () {
@@ -724,8 +735,11 @@
     const tipo      = document.getElementById('tipo').value.trim();
     const cliente   = document.getElementById('cliente').value.trim();
     const tipoCobranca = document.getElementById('tipoCobranca').value;
-    const valor       = tipoCobranca === 'viagem' ? 0 : (parseFloat(document.getElementById('valor').value) || 0);
+    const valor       = tipoCobranca === 'viagem' || tipoCobranca === 'carrada' ? 0 : (parseFloat(document.getElementById('valor').value) || 0);
     const valorViagem = tipoCobranca === 'viagem' ? (parseFloat(document.getElementById('valorViagem').value) || 0) : 0;
+    const qtdCarradas    = tipoCobranca === 'carrada' ? (parseFloat(document.getElementById('qtdCarradas').value) || 0) : 0;
+    const valorPorCarrada= tipoCobranca === 'carrada' ? (parseFloat(document.getElementById('valorPorCarrada').value) || 0) : 0;
+    const outrosServicos = tipoCobranca === 'carrada' ? (parseFloat(document.getElementById('outrosServicos').value) || 0) : 0;
     const dataInicio = document.getElementById('dataInicio').value;
     const status    = document.getElementById('status').value;
     const obs       = document.getElementById('obs').value.trim();
@@ -741,7 +755,7 @@
 
     try {
       await db.collection('servicos').add({
-        vendedor, tipo, cliente, tipoCobranca, valor, valorViagem, dataInicio, status, obs,
+        vendedor, tipo, cliente, tipoCobranca, valor, valorViagem, qtdCarradas, valorPorCarrada, outrosServicos, dataInicio, status, obs,
         pagamentos: [], lancado: false,
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
       });
@@ -750,6 +764,9 @@
       document.getElementById('cliente').value = '';
       document.getElementById('valor').value   = '';
       document.getElementById('valorViagem').value = '';
+      document.getElementById('qtdCarradas').value = '';
+      document.getElementById('valorPorCarrada').value = '';
+      document.getElementById('outrosServicos').value = '';
       document.getElementById('tipoCobranca').value = 'empreitada';
       toggleTipoCobranca();
       document.getElementById('status').value  = 'andamento';
@@ -815,14 +832,16 @@
 
   function toggleTipoCobranca() {
     const tipo = document.getElementById('tipoCobranca').value;
-    document.getElementById('valorEmpreitadaBox').style.display = tipo === 'viagem' ? 'none' : '';
-    document.getElementById('valorViagemBox').style.display     = tipo === 'viagem' ? '' : 'none';
+    document.getElementById('valorEmpreitadaBox').style.display = tipo === 'empreitada' ? '' : 'none';
+    document.getElementById('valorViagemBox').style.display     = tipo === 'viagem'     ? '' : 'none';
+    document.getElementById('valorCarradaBox').style.display    = tipo === 'carrada'    ? '' : 'none';
   }
 
   function toggleTipoCobrancaEdicao(id) {
     const tipo = document.getElementById(`tipoCobrancaEdicao_${id}`).value;
-    document.getElementById(`valorEmpreitadaBoxEdicao_${id}`).style.display = tipo === 'viagem' ? 'none' : '';
-    document.getElementById(`valorViagemBoxEdicao_${id}`).style.display     = tipo === 'viagem' ? '' : 'none';
+    document.getElementById(`valorEmpreitadaBoxEdicao_${id}`).style.display = tipo === 'empreitada' ? '' : 'none';
+    document.getElementById(`valorViagemBoxEdicao_${id}`).style.display     = tipo === 'viagem'     ? '' : 'none';
+    document.getElementById(`valorCarradaBoxEdicao_${id}`).style.display    = tipo === 'carrada'    ? '' : 'none';
   }
 
   function iniciarEdicaoServico(id) {
@@ -839,8 +858,11 @@
     const tipo      = document.getElementById(`tipoEdicao_${id}`).value.trim();
     const cliente   = document.getElementById(`clienteEdicao_${id}`).value.trim();
     const tipoCobranca = document.getElementById(`tipoCobrancaEdicao_${id}`).value;
-    const valor       = tipoCobranca === 'viagem' ? 0 : (parseFloat(document.getElementById(`valorEdicao_${id}`).value) || 0);
+    const valor       = tipoCobranca === 'viagem' || tipoCobranca === 'carrada' ? 0 : (parseFloat(document.getElementById(`valorEdicao_${id}`).value) || 0);
     const valorViagem = tipoCobranca === 'viagem' ? (parseFloat(document.getElementById(`valorViagemEdicao_${id}`).value) || 0) : 0;
+    const qtdCarradas    = tipoCobranca === 'carrada' ? (parseFloat(document.getElementById(`qtdCarradasEdicao_${id}`).value) || 0) : 0;
+    const valorPorCarrada= tipoCobranca === 'carrada' ? (parseFloat(document.getElementById(`valorPorCarradaEdicao_${id}`).value) || 0) : 0;
+    const outrosServicos = tipoCobranca === 'carrada' ? (parseFloat(document.getElementById(`outrosServicosEdicao_${id}`).value) || 0) : 0;
     const dataInicio = document.getElementById(`dataInicioEdicao_${id}`).value;
     const status    = document.getElementById(`statusEdicao_${id}`).value;
     const obs       = document.getElementById(`obsEdicao_${id}`).value.trim();
@@ -854,7 +876,7 @@
 
     try {
       await db.collection('servicos').doc(id).update({
-        tipo, cliente, tipoCobranca, valor, valorViagem, dataInicio, status, obs,
+        tipo, cliente, tipoCobranca, valor, valorViagem, qtdCarradas, valorPorCarrada, outrosServicos, dataInicio, status, obs,
         historico: firebase.firestore.FieldValue.arrayUnion({ acao, quando: new Date() })
       });
       editandoServicoId = null;
@@ -1063,6 +1085,47 @@
     renderTudo();
   }
 
+  function toggleFormDespesas(id) {
+    if (formsDespesasAbertos.has(id)) formsDespesasAbertos.delete(id);
+    else formsDespesasAbertos.add(id);
+    renderTudo();
+  }
+
+  async function adicionarDespesa(servicoId) {
+    const descricao = document.getElementById(`despDesc_${servicoId}`).value.trim();
+    const valor = parseFloat(document.getElementById(`despValor_${servicoId}`).value) || 0;
+    const data = document.getElementById(`despData_${servicoId}`).value;
+    if (!descricao) { mostrarAlerta('Informe a descrição da despesa.', true); return; }
+    if (valor <= 0) { mostrarAlerta('Informe um valor válido.', true); return; }
+    if (!data) { mostrarAlerta('Informe a data.', true); return; }
+    const servico = servicos.find(s => s.id === servicoId);
+    if (!servico) return;
+    const despesas = [...(servico.despesas || []), { id: 'desp_' + Date.now(), descricao, valor, data }];
+    const btn = document.getElementById(`btnSalvarDespesa_${servicoId}`);
+    if (btn) { btn.disabled = true; btn.textContent = 'Salvando...'; }
+    try {
+      await db.collection('servicos').doc(servicoId).update({ despesas });
+      formsDespesasAbertos.delete(servicoId);
+      mostrarAlerta('✔ Despesa registrada!');
+    } catch {
+      mostrarAlerta('Erro ao salvar despesa.', true);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Salvar Despesa'; }
+    }
+  }
+
+  async function deletarDespesa(servicoId, despId) {
+    if (!confirm('Remover esta despesa?')) return;
+    const servico = servicos.find(s => s.id === servicoId);
+    if (!servico) return;
+    const despesas = (servico.despesas || []).filter(d => d.id !== despId);
+    try {
+      await db.collection('servicos').doc(servicoId).update({ despesas });
+    } catch {
+      mostrarAlerta('Erro ao remover despesa.', true);
+    }
+  }
+
   function renderTudo() {
     const lista              = document.getElementById('listaServicos');
     const summary            = document.getElementById('summaryArea');
@@ -1089,7 +1152,11 @@
     servicos.forEach(s => {
       const vS = viagens.filter(v => v.servicoId === s.id);
       const totalViagensS = vS.reduce((a, v) => a + (v.quantidade || 0), 0);
-      const valorEfetivoS = s.tipoCobranca === 'viagem' ? (s.valorViagem || 0) * totalViagensS : (s.valor || 0);
+      const valorEfetivoS = s.tipoCobranca === 'viagem'
+          ? (s.valorViagem || 0) * totalViagensS
+          : s.tipoCobranca === 'carrada'
+              ? (s.qtdCarradas || 0) * (s.valorPorCarrada || 0) + (s.outrosServicos || 0)
+              : (s.valor || 0);
       const totalPagoS = (s.pagamentos || []).reduce((a, p) => a + (p.valor || 0), 0);
       totalRecebidoGeral += totalPagoS;
       totalAReceberGeral += Math.max(valorEfetivoS - totalPagoS, 0);
@@ -1115,10 +1182,16 @@
       const minhasViagens = viagens.filter(v => v.servicoId === s.id);
       const minhasAbastecimentos = abastecimentos.filter(a => a.servicoId === s.id);
       const meusPagamentos = s.pagamentos || [];
+      const minhasDespesas = s.despesas || [];
       const totalViagens  = minhasViagens.reduce((a, v) => a + (v.quantidade || 0), 0);
-      const valorEfetivo  = s.tipoCobranca === 'viagem' ? (s.valorViagem || 0) * totalViagens : (s.valor || 0);
+      const valorEfetivo  = s.tipoCobranca === 'viagem'
+          ? (s.valorViagem || 0) * totalViagens
+          : s.tipoCobranca === 'carrada'
+              ? (s.qtdCarradas || 0) * (s.valorPorCarrada || 0) + (s.outrosServicos || 0)
+              : (s.valor || 0);
       const formAberto    = formsAbertos.has(s.id);
       const formAbastecimentoAberto = formsAbastecimentoAbertos.has(s.id);
+      const formDespesasAberto = formsDespesasAbertos.has(s.id);
 
       let tabelaViagens = '';
       if (minhasViagens.length > 0) {
@@ -1188,6 +1261,36 @@
         tabelaAbastecimentos = '<div class="no-viagens">Nenhum abastecimento registrado</div>';
       }
 
+      let tabelaDespesas = '';
+      if (minhasDespesas.length > 0) {
+        let linhas = '';
+        for (const d of minhasDespesas) {
+          linhas += `
+            <tr>
+                <td>${escapar(d.descricao)}</td>
+                <td>${formatarValor(d.valor || 0)}</td>
+                <td>${formatarData(d.data)}</td>
+                <td class="del-cell">
+                    <button class="delete-btn" onclick="deletarDespesa('${s.id}', '${d.id}')" title="Remover despesa">✕</button>
+                </td>
+            </tr>`;
+        }
+        tabelaDespesas = `
+            <table>
+                <thead>
+                    <tr>
+                        <th>Descrição</th>
+                        <th>Valor</th>
+                        <th>Data</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>${linhas}</tbody>
+            </table>`;
+      } else {
+        tabelaDespesas = '<div class="no-viagens">Nenhuma despesa registrada</div>';
+      }
+
       const totalPago = meusPagamentos.reduce((a, p) => a + (p.valor || 0), 0);
       const falta = Math.max(valorEfetivo - totalPago, 0);
       const statusPagamento = valorEfetivo > 0 && totalPago >= valorEfetivo
@@ -1234,17 +1337,26 @@
                 <input type="text" id="clienteEdicao_${s.id}" value="${escaparAtributo(s.cliente)}" />
                 <label>Tipo de Cobrança</label>
                 <select id="tipoCobrancaEdicao_${s.id}" onchange="toggleTipoCobrancaEdicao('${s.id}')">
-                  <option value="empreitada" ${s.tipoCobranca !== 'viagem' ? 'selected' : ''}>📋 Empreitada (valor fixo)</option>
+                  <option value="empreitada" ${s.tipoCobranca === 'empreitada' || !s.tipoCobranca ? 'selected' : ''}>📋 Empreitada (valor fixo)</option>
                   <option value="viagem" ${s.tipoCobranca === 'viagem' ? 'selected' : ''}>🚛 Por Viagem</option>
+                  <option value="carrada" ${s.tipoCobranca === 'carrada' ? 'selected' : ''}>🪨 Por Carrada</option>
                 </select>
                 <div class="row">
-                  <div id="valorEmpreitadaBoxEdicao_${s.id}" style="${s.tipoCobranca === 'viagem' ? 'display:none' : ''}">
+                  <div id="valorEmpreitadaBoxEdicao_${s.id}" style="${s.tipoCobranca === 'viagem' || s.tipoCobranca === 'carrada' ? 'display:none' : ''}">
                     <label>Valor do Serviço (R$)</label>
                     <input type="number" id="valorEdicao_${s.id}" value="${s.valor || ''}" min="0" step="0.01" />
                   </div>
                   <div id="valorViagemBoxEdicao_${s.id}" style="${s.tipoCobranca === 'viagem' ? '' : 'display:none'}">
                     <label>Valor por Viagem (R$)</label>
                     <input type="number" id="valorViagemEdicao_${s.id}" value="${s.valorViagem || ''}" min="0" step="0.01" />
+                  </div>
+                  <div id="valorCarradaBoxEdicao_${s.id}" style="${s.tipoCobranca === 'carrada' ? '' : 'display:none'}">
+                    <label>Quantidade de Carradas</label>
+                    <input type="number" id="qtdCarradasEdicao_${s.id}" value="${s.qtdCarradas || ''}" min="0" />
+                    <label>Valor por Carrada (R$)</label>
+                    <input type="number" id="valorPorCarradaEdicao_${s.id}" value="${s.valorPorCarrada || ''}" min="0" step="0.01" />
+                    <label>Outros Serviços (R$)</label>
+                    <input type="number" id="outrosServicosEdicao_${s.id}" value="${s.outrosServicos || ''}" min="0" step="0.01" />
                   </div>
                   <div>
                     <label>Data de Início</label>
@@ -1274,7 +1386,13 @@
               <div class="srv-tipo">${escapar(s.tipo)}</div>
               <div class="srv-cliente">👤 ${escapar(s.cliente)}</div>
               <div class="srv-data">📅 Início: ${formatarData(s.dataInicio)}</div>
-              ${valorEfetivo ? `<div class="srv-valor">${formatarValor(valorEfetivo)}${s.tipoCobranca === 'viagem' ? ` <span style="font-size:0.7em;color:#888">(${formatarValor(s.valorViagem || 0)} × ${totalViagens} viagens)</span>` : ''}</div>` : ''}
+              ${valorEfetivo ? `<div class="srv-valor">${formatarValor(valorEfetivo)}${
+                  s.tipoCobranca === 'viagem'
+                      ? ` <span style="font-size:0.7em;color:#888">(${formatarValor(s.valorViagem || 0)} × ${totalViagens} viagens)</span>`
+                  : s.tipoCobranca === 'carrada'
+                      ? ` <span style="font-size:0.7em;color:#888">(${s.qtdCarradas || 0} carradas × ${formatarValor(s.valorPorCarrada || 0)}${s.outrosServicos ? ` + ${formatarValor(s.outrosServicos)} outros` : ''})</span>`
+                  : ''
+              }</div>` : ''}
               ${s.vendedor ? `<span class="vendedor-tag">🧑‍💼 ${escapar(s.vendedor)}</span>` : ''}
               ${s.obs ? `<div class="srv-cliente" style="color:#888">💬 ${escapar(s.obs)}</div>` : ''}
               <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
@@ -1371,6 +1489,34 @@
               </div>
               <button class="btn-add-viagem" id="btnSalvarAbastecimento_${s.id}" onclick="adicionarAbastecimento('${s.id}')">
                 Salvar Abastecimento
+              </button>
+            </div>
+          </div>
+
+          <div class="viagens-section">
+            <div class="viagens-titulo">💸 Despesas do Serviço</div>
+
+            ${tabelaDespesas}
+
+            <button class="btn-toggle-viagem" onclick="toggleFormDespesas('${s.id}')">
+              ${formDespesasAberto ? '▲ Cancelar' : '➕ Adicionar despesa'}
+            </button>
+
+            <div class="add-viagem-form ${formDespesasAberto ? 'aberto' : ''}">
+              <label style="margin-top:0">Descrição</label>
+              <input type="text" id="despDesc_${s.id}" placeholder="Ex: Aluguel rolo, Material de aterro..." />
+              <div class="row">
+                <div>
+                  <label style="margin-top:0">Valor (R$)</label>
+                  <input type="number" id="despValor_${s.id}" placeholder="0,00" min="0" step="0.01" />
+                </div>
+                <div>
+                  <label style="margin-top:0">Data</label>
+                  <input type="date" id="despData_${s.id}" value="${hoje}" />
+                </div>
+              </div>
+              <button class="btn-add-viagem" id="btnSalvarDespesa_${s.id}" onclick="adicionarDespesa('${s.id}')">
+                Salvar Despesa
               </button>
             </div>
           </div>
