@@ -1350,6 +1350,18 @@
     if (periodoInicio) vendas = vendas.filter(v => (v.data || '') >= periodoInicio);
     if (periodoFim) vendas = vendas.filter(v => (v.data || '') <= periodoFim);
 
+    // Recebido pela DATA DO PAGAMENTO dentro do período (não pela data da venda)
+    const recebidoPeriodo = v => {
+      if (v.pagamentos && v.pagamentos.length) {
+        return v.pagamentos
+          .filter(p => { const d = p.data || ''; return (!periodoInicio || d >= periodoInicio) && (!periodoFim || d <= periodoFim); })
+          .reduce((s, p) => s + (p.valor || 0), 0);
+      }
+      const dr = v.dataRecebimento || '';
+      if ((!periodoInicio || dr >= periodoInicio) && (!periodoFim || dr <= periodoFim)) return v.valorPago || 0;
+      return 0;
+    };
+
     const titulos = { geral: 'Relatório Geral de Vendas', a_receber: 'Relatório de Vendas A Receber', a_entregar: 'Relatório de Vendas A Entregar', recebimento: 'Relatório A Receber / Recebidas' };
     const periodoTxt = periodoInicio || periodoFim
       ? `  |  ${periodoInicio ? formatarData(periodoInicio) : '...'}  até  ${periodoFim ? formatarData(periodoFim) : '...'}`
@@ -1381,8 +1393,8 @@
 
     const linhasDe = (lista) => lista.map((v, i) => {
       const statusEntrega = v.statusEntrega || 'a_entregar';
-      const recebido = valorPagoEfetivo(v);
-      const aReceber = Math.max((v.valor || 0) - recebido, 0);
+      const recebido = recebidoPeriodo(v);
+      const aReceber = Math.max((v.valor || 0) - valorPagoEfetivo(v), 0);
       const entregaTxt = statusEntrega === 'entregue' ? 'Entregue' : 'A Entregar';
       const itens = v.itens && v.itens.length ? v.itens : [{ produto: v.produto, valor: v.valor }];
       const produtosTxt = itens.map(it => `${it.produto} (${formatarValor(it.valor)})`).join('\n');
@@ -1442,7 +1454,7 @@
         y = doc.lastAutoTable.finalY + 7;
 
         const totalMes = grupo.reduce((s, v) => s + (v.valor || 0), 0);
-        const recebidoMes = grupo.reduce((s, v) => s + valorPagoEfetivo(v), 0);
+        const recebidoMes = grupo.reduce((s, v) => s + recebidoPeriodo(v), 0);
         const aReceberMes = grupo.reduce((s, v) => s + Math.max((v.valor || 0) - valorPagoEfetivo(v), 0), 0);
         doc.setFontSize(11);
         doc.setFont('helvetica', 'bold');
@@ -1453,7 +1465,7 @@
 
       if (y > pageHeight - 20) { doc.addPage(); y = 16; }
       const total = vendas.reduce((s, v) => s + (v.valor || 0), 0);
-      const totalRecebido = vendas.reduce((s, v) => s + valorPagoEfetivo(v), 0);
+      const totalRecebido = vendas.reduce((s, v) => s + recebidoPeriodo(v), 0);
       const totalAReceber = vendas.reduce((s, v) => s + Math.max((v.valor || 0) - valorPagoEfetivo(v), 0), 0);
       doc.setFontSize(13);
       doc.setFont('helvetica', 'bold');
