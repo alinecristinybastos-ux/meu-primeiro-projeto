@@ -1818,7 +1818,7 @@
     doc.text(`Gerado em ${new Date().toLocaleString('pt-BR')}`, 14, 287);
 
     const nomeCliente1 = `relatorio-cliente-${(s.cliente || 'servico').trim().replace(/\s+/g, '_')}.pdf`;
-    if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) { window.open(doc.output('bloburl'), '_blank'); } else { doc.save(nomeCliente1); }
+    doc.save(nomeCliente1);
   }
 
   async function gerarRelatorioMotoristas(servicoId) {
@@ -1914,7 +1914,7 @@
     doc.text(`Gerado em ${new Date().toLocaleString('pt-BR')}`, 14, 287);
 
     const nomeMotoristas1 = `relatorio-motoristas-${(s.cliente || 'servico').trim().replace(/\s+/g, '_')}.pdf`;
-    if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) { window.open(doc.output('bloburl'), '_blank'); } else { doc.save(nomeMotoristas1); }
+    doc.save(nomeMotoristas1);
   }
 
   function formatarValor(v) {
