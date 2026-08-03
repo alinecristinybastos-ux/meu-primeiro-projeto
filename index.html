@@ -1557,7 +1557,14 @@
       doc.text(`Total: ${formatarValor(total)}   |   Recebido: ${formatarValor(totalRecebido)}   |   A Receber: ${formatarValor(totalAReceber)}`, margin.left, finalY);
     }
 
-    doc.save(`relatorio_vendas_${tipo}_${hoje.replace(/\//g, '-')}.pdf`);
+    const nomeArquivo = `relatorio_vendas_${tipo}_${hoje.replace(/\//g, '-')}.pdf`;
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (isMobile) {
+      const blobUrl = doc.output('bloburl');
+      window.open(blobUrl, '_blank');
+    } else {
+      doc.save(nomeArquivo);
+    }
   }
 
   function formatarValor(v) {
