@@ -1352,13 +1352,25 @@
 
     // Recebido pela DATA DO PAGAMENTO dentro do período (não pela data da venda)
     const recebidoPeriodo = v => {
+      // Formato novo: array pagamentos com data individual
       if (v.pagamentos && v.pagamentos.length) {
         return v.pagamentos
           .filter(p => { const d = p.data || ''; return (!periodoInicio || d >= periodoInicio) && (!periodoFim || d <= periodoFim); })
           .reduce((s, p) => s + (p.valor || 0), 0);
       }
+      // Formato antigo com dataRecebimento explícita
       const dr = v.dataRecebimento || '';
-      if ((!periodoInicio || dr >= periodoInicio) && (!periodoFim || dr <= periodoFim)) return v.valorPago || 0;
+      if (dr) {
+        return ((!periodoInicio || dr >= periodoInicio) && (!periodoFim || dr <= periodoFim)) ? (v.valorPago || 0) : 0;
+      }
+      // Legado: marcado como pago sem data de pagamento → usa data da venda como referência
+      const ds = v.data || '';
+      if (v.statusPagamento === 'pago') {
+        return ((!periodoInicio || ds >= periodoInicio) && (!periodoFim || ds <= periodoFim)) ? (v.valor || 0) : 0;
+      }
+      if (v.valorPago) {
+        return ((!periodoInicio || ds >= periodoInicio) && (!periodoFim || ds <= periodoFim)) ? (v.valorPago || 0) : 0;
+      }
       return 0;
     };
 
