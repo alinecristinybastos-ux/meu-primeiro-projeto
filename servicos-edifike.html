@@ -1817,7 +1817,8 @@
     doc.setFontSize(8);
     doc.text(`Gerado em ${new Date().toLocaleString('pt-BR')}`, 14, 287);
 
-    doc.save(`relatorio-cliente-${(s.cliente || 'servico').trim().replace(/\s+/g, '_')}.pdf`);
+    const nomeCliente1 = `relatorio-cliente-${(s.cliente || 'servico').trim().replace(/\s+/g, '_')}.pdf`;
+    doc.save(nomeCliente1);
   }
 
   async function gerarRelatorioMotoristas(servicoId) {
@@ -1912,7 +1913,8 @@
     doc.setFontSize(8);
     doc.text(`Gerado em ${new Date().toLocaleString('pt-BR')}`, 14, 287);
 
-    doc.save(`relatorio-motoristas-${(s.cliente || 'servico').trim().replace(/\s+/g, '_')}.pdf`);
+    const nomeMotoristas1 = `relatorio-motoristas-${(s.cliente || 'servico').trim().replace(/\s+/g, '_')}.pdf`;
+    doc.save(nomeMotoristas1);
   }
 
   function formatarValor(v) {
