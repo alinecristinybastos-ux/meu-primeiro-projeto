@@ -1753,7 +1753,7 @@
     const pageWidth = doc.internal.pageSize.getWidth();
     let y;
     if (logo) {
-      const logoW = 50;
+      const logoW = 80;
       const logoH = (logo.h / logo.w) * logoW;
       doc.addImage(logo.dataUrl, 'PNG', (pageWidth - logoW) / 2, 10, logoW, logoH);
       y = 10 + logoH + 10;
@@ -1843,7 +1843,7 @@
     const pageWidth = doc.internal.pageSize.getWidth();
     let y;
     if (logo) {
-      const logoW = 50;
+      const logoW = 80;
       const logoH = (logo.h / logo.w) * logoW;
       doc.addImage(logo.dataUrl, 'PNG', (pageWidth - logoW) / 2, 10, logoW, logoH);
       y = 10 + logoH + 8;
