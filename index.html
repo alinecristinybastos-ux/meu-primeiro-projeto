@@ -1395,7 +1395,9 @@
       canvas.height = logoEl.naturalHeight;
       canvas.getContext('2d').drawImage(logoEl, 0, 0);
       const logoData = canvas.toDataURL('image/png');
-      doc.addImage(logoData, 'PNG', 14, 4, 60, 22);
+      const logoW = 70;
+      const logoH = (logoEl.naturalHeight / logoEl.naturalWidth) * logoW;
+      doc.addImage(logoData, 'PNG', 14, (28 - logoH) / 2, logoW, logoH);
     } catch(e) {}
 
     doc.setTextColor(100, 100, 100);
