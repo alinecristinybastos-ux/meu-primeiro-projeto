@@ -30,7 +30,7 @@
       border-bottom: 3px solid #f5a623;
     }
 
-    header img { height: 70px; flex: 1; object-fit: contain; object-position: left; }
+    header img { flex: 1; height: 80px; object-fit: cover; object-position: center 50%; min-width: 0; }
     header .app-title {
       font-size: 0.75rem;
       font-weight: 600;
@@ -569,8 +569,7 @@
 
 <header>
   <img src="logo.png" alt="Construale" />
-  <div class="app-title">Controle de<br>Serviços</div>
-  <a href="alteracoes.html" title="Alterações Recentes" style="margin-left:auto;text-decoration:none;background:#888;color:white;padding:4px 8px;border-radius:6px;font-size:0.72rem;font-weight:600;white-space:nowrap;">🔔</a>
+  <a href="alteracoes.html" title="Alterações Recentes" style="text-decoration:none;background:#888;color:white;padding:4px 8px;border-radius:6px;font-size:0.72rem;font-weight:600;white-space:nowrap;flex-shrink:0;">🔔</a>
   <div class="status-dot" id="statusDot" title="Conectando..." style="margin-left:8px"></div>
 </header>
 
