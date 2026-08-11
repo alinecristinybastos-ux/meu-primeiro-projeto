@@ -1210,6 +1210,9 @@
       const arr = v.pagamentos;
       if (arr && arr.length) return s + arr.filter(p => (p.data || '').slice(0, 7) === _anoMesAtual).reduce((a, p) => a + (p.valor || 0), 0);
       if ((v.dataRecebimento || '').slice(0, 7) === _anoMesAtual) return s + (v.valorPago || 0);
+      const mes = (v.data || '').slice(0, 7);
+      if ((v.statusPagamento === 'pago' || v.statusPagamento === 'recebido') && mes === _anoMesAtual) return s + (v.valor || 0);
+      if (v.valorPago && mes === _anoMesAtual) return s + (v.valorPago || 0);
       return s;
     }, 0);
 
