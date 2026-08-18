@@ -1487,26 +1487,42 @@
 
       let y = 36;
 
+      const renderSecaoClientes = (lista, cor, vazio) => {
+        if (lista.length === 0) {
+          doc.setFontSize(10); doc.setFont('helvetica', 'italic'); doc.setTextColor(150, 150, 150);
+          doc.text(vazio, margin.left, y + 4); y += 14; return;
+        }
+        const gs = {};
+        for (const v of lista) { const c = (v.cliente || 'Sem cliente').trim(); if (!gs[c]) gs[c] = []; gs[c].push(v); }
+        for (const cli of Object.keys(gs).sort((a, b) => a.localeCompare(b, 'pt-BR'))) {
+          if (y > pageHeight - 40) { doc.addPage(); y = 16; }
+          doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.setTextColor(...cor);
+          doc.text(cli.toUpperCase(), margin.left, y); y += 4;
+          doc.autoTable({ startY: y, head, body: linhasDe(gs[cli]), theme: 'striped', headStyles: { ...headStyles, fillColor: cor }, bodyStyles, columnStyles, margin });
+          y = doc.lastAutoTable.finalY + 5;
+          const tot = gs[cli].reduce((s, v) => s + (v.valor || 0), 0);
+          const rec = gs[cli].reduce((s, v) => s + valorPagoEfetivo(v), 0);
+          const falta = gs[cli].reduce((s, v) => s + Math.max((v.valor || 0) - valorPagoEfetivo(v), 0), 0);
+          doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(...cor);
+          doc.text(`${cli}: Total ${formatarValor(tot)}   |   Recebido: ${formatarValor(rec)}   |   A Receber: ${formatarValor(falta)}`, margin.left, y);
+          y += 9;
+        }
+      };
+
       // Seção A Receber / Parcial
       doc.setFontSize(13);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(234, 67, 53);
       doc.text(`⚠ A Receber / Parcial (${pendentes.length} venda(s))`, margin.left, y);
       y += 5;
-
+      renderSecaoClientes(pendentes, [234, 67, 53], 'Nenhuma venda pendente no período.');
       if (pendentes.length > 0) {
-        doc.autoTable({ startY: y, head, body: linhasDe(pendentes), theme: 'striped', headStyles: { ...headStyles, fillColor: [234, 67, 53] }, bodyStyles, columnStyles, margin });
-        y = doc.lastAutoTable.finalY + 6;
         const totP = pendentes.reduce((s, v) => s + (v.valor || 0), 0);
         const recP = pendentes.reduce((s, v) => s + valorPagoEfetivo(v), 0);
         const faltaP = pendentes.reduce((s, v) => s + Math.max((v.valor || 0) - valorPagoEfetivo(v), 0), 0);
         doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.setTextColor(234, 67, 53);
-        doc.text(`Subtotal A Receber: ${formatarValor(totP)}   |   Já Recebido: ${formatarValor(recP)}   |   Falta: ${formatarValor(faltaP)}`, margin.left, y);
+        doc.text(`SUBTOTAL A RECEBER: ${formatarValor(totP)}   |   Já Recebido: ${formatarValor(recP)}   |   Falta: ${formatarValor(faltaP)}`, margin.left, y);
         y += 12;
-      } else {
-        doc.setFontSize(10); doc.setFont('helvetica', 'italic'); doc.setTextColor(150, 150, 150);
-        doc.text('Nenhuma venda pendente no período.', margin.left, y + 4);
-        y += 14;
       }
 
       // Seção Recebidas
@@ -1514,18 +1530,13 @@
       doc.setFontSize(13); doc.setFont('helvetica', 'bold'); doc.setTextColor(52, 168, 83);
       doc.text(`✔ Recebidas (${recebidas.length} venda(s))`, margin.left, y);
       y += 5;
-
+      renderSecaoClientes(recebidas, [52, 168, 83], 'Nenhuma venda recebida no período.');
       if (recebidas.length > 0) {
-        doc.autoTable({ startY: y, head, body: linhasDe(recebidas), theme: 'striped', headStyles: { ...headStyles, fillColor: [52, 168, 83] }, bodyStyles, columnStyles, margin });
-        y = doc.lastAutoTable.finalY + 6;
         const totR = recebidas.reduce((s, v) => s + (v.valor || 0), 0);
+        const recR = recebidas.reduce((s, v) => s + recebidoPeriodo(v), 0);
         doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.setTextColor(52, 168, 83);
-        doc.text(`Subtotal Recebidas: ${formatarValor(totR)}`, margin.left, y);
+        doc.text(`SUBTOTAL RECEBIDAS: ${formatarValor(totR)}   |   Recebido no período: ${formatarValor(recR)}`, margin.left, y);
         y += 12;
-      } else {
-        doc.setFontSize(10); doc.setFont('helvetica', 'italic'); doc.setTextColor(150, 150, 150);
-        doc.text('Nenhuma venda recebida no período.', margin.left, y + 4);
-        y += 14;
       }
 
       // Totais finais
