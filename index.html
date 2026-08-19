@@ -1406,13 +1406,20 @@
     doc.setFont('helvetica', 'normal');
     doc.text(`${titulo}  |  ${hoje}  |  ${vendas.length} venda(s)`, pageWidth - 14, 18, { align: 'right' });
 
-    const linhasDe = (lista) => lista.map((v, i) => {
+    const linhasDe = (lista) => lista.slice().sort((a, b) => (a.data || '').localeCompare(b.data || '')).map((v, i) => {
       const statusEntrega = v.statusEntrega || 'a_entregar';
       const recebido = recebidoPeriodo(v);
       const aReceber = Math.max((v.valor || 0) - valorPagoEfetivo(v), 0);
       const entregaTxt = statusEntrega === 'entregue' ? 'Entregue' : 'A Entregar';
       const itens = v.itens && v.itens.length ? v.itens : [{ produto: v.produto, valor: v.valor }];
       const produtosTxt = itens.map(it => `${it.produto} (${formatarValor(it.valor)})`).join('\n');
+      let dataPag = '-';
+      if (v.pagamentos && v.pagamentos.length) {
+        const datas = v.pagamentos.map(p => p.data).filter(Boolean).sort();
+        dataPag = datas.map(d => formatarData(d)).join('\n') || '-';
+      } else if (v.dataRecebimento) {
+        dataPag = formatarData(v.dataRecebimento);
+      }
       return [
         v.numero || '-',
         v.vendedor || '-',
@@ -1423,11 +1430,12 @@
         formatarValor(aReceber),
         entregaTxt,
         v.obs || '',
-        `${formatarData(v.data)}${v.hora ? ' ' + v.hora : ''}`
+        formatarData(v.data),
+        dataPag
       ];
     });
 
-    const head = [['#', 'Vendedor', 'Cliente', 'Produtos', 'Valor Total', 'Recebido', 'A Receber', 'Entrega', 'Observação', 'Data/Hora']];
+    const head = [['#', 'Vendedor', 'Cliente', 'Produtos', 'Valor Total', 'Recebido', 'A Receber', 'Entrega', 'Observação', 'Data Venda', 'Data Pag.']];
     const headStyles = { fillColor: [245, 166, 35], textColor: 255, fontStyle: 'bold', fontSize: 10 };
     const bodyStyles = { fontSize: 9 };
     const columnStyles = { 0: { cellWidth: 8 }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' } };
