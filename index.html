@@ -1420,6 +1420,11 @@
       } else if (v.dataRecebimento) {
         dataPag = formatarData(v.dataRecebimento);
       }
+      let dataLancamento = '-';
+      if (v.timestamp) {
+        const d = v.timestamp.toDate ? v.timestamp.toDate() : new Date(v.timestamp);
+        dataLancamento = d.toLocaleDateString('pt-BR');
+      }
       return [
         v.numero || '-',
         v.vendedor || '-',
@@ -1431,11 +1436,12 @@
         entregaTxt,
         v.obs || '',
         formatarData(v.data),
-        dataPag
+        dataPag,
+        dataLancamento
       ];
     });
 
-    const head = [['#', 'Vendedor', 'Cliente', 'Produtos', 'Valor Total', 'Recebido', 'A Receber', 'Entrega', 'Observação', 'Data Venda', 'Data Pag.']];
+    const head = [['#', 'Vendedor', 'Cliente', 'Produtos', 'Valor Total', 'Recebido', 'A Receber', 'Entrega', 'Observação', 'Data Venda', 'Data Pag.', 'Dt. Lançto.']];
     const headStyles = { fillColor: [245, 166, 35], textColor: 255, fontStyle: 'bold', fontSize: 10 };
     const bodyStyles = { fontSize: 9 };
     const columnStyles = { 0: { cellWidth: 8 }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' } };
