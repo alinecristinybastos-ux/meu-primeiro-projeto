@@ -1450,7 +1450,7 @@
     if (tipo === 'geral') {
       const grupos = {};
       for (const v of vendas) {
-        const chave = (v.cliente || 'Sem cliente').trim();
+        const chave = (v.cliente || 'Sem cliente').trim().toUpperCase();
         if (!grupos[chave]) grupos[chave] = [];
         grupos[chave].push(v);
       }
@@ -1507,7 +1507,7 @@
           doc.text(vazio, margin.left, y + 4); y += 14; return;
         }
         const gs = {};
-        for (const v of lista) { const c = (v.cliente || 'Sem cliente').trim(); if (!gs[c]) gs[c] = []; gs[c].push(v); }
+        for (const v of lista) { const c = (v.cliente || 'Sem cliente').trim().toUpperCase(); if (!gs[c]) gs[c] = []; gs[c].push(v); }
         for (const cli of Object.keys(gs).sort((a, b) => a.localeCompare(b, 'pt-BR'))) {
           if (y > pageHeight - 40) { doc.addPage(); y = 16; }
           doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.setTextColor(...cor);
@@ -1563,7 +1563,7 @@
 
     } else if (tipo === 'a_receber') {
       const grupos = {};
-      for (const v of vendas) { const chave = (v.cliente || 'Sem cliente').trim(); if (!grupos[chave]) grupos[chave] = []; grupos[chave].push(v); }
+      for (const v of vendas) { const chave = (v.cliente || 'Sem cliente').trim().toUpperCase(); if (!grupos[chave]) grupos[chave] = []; grupos[chave].push(v); }
       const chaves = Object.keys(grupos).sort((a, b) => a.localeCompare(b, 'pt-BR'));
       let y = 36;
       for (const chave of chaves) {
