@@ -1012,7 +1012,12 @@
 
   async function atualizarStatusPagamento(id, novoStatus) {
     try {
-      await db.collection('vendas').doc(id).update({ statusPagamento: novoStatus });
+      const venda = todasVendas.find(v => v.id === id);
+      const update = { statusPagamento: novoStatus };
+      if (novoStatus === 'pago' && venda && !venda.pagamentos?.length && !venda.dataRecebimento) {
+        update.dataRecebimento = new Date().toISOString().slice(0, 10);
+      }
+      await db.collection('vendas').doc(id).update(update);
     } catch (e) { mostrarAlerta('Erro ao atualizar status.', true); }
   }
 
@@ -1419,8 +1424,6 @@
         dataPag = datas.map(d => formatarData(d)).join('\n') || '-';
       } else if (v.dataRecebimento) {
         dataPag = formatarData(v.dataRecebimento);
-      } else if (v.statusPagamento === 'pago' || v.statusPagamento === 'recebido') {
-        dataPag = formatarData(v.data);
       }
       let dataLancamento = '-';
       if (v.timestamp) {
