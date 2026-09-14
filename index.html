@@ -1419,6 +1419,8 @@
         dataPag = datas.map(d => formatarData(d)).join('\n') || '-';
       } else if (v.dataRecebimento) {
         dataPag = formatarData(v.dataRecebimento);
+      } else if (v.statusPagamento === 'pago' || v.statusPagamento === 'recebido') {
+        dataPag = formatarData(v.data);
       }
       let dataLancamento = '-';
       if (v.timestamp) {
