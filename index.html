@@ -1449,7 +1449,20 @@
     const head = [['#', 'Vendedor', 'Cliente', 'Produtos', 'Valor Total', 'Recebido', 'A Receber', 'Entrega', 'Observação', 'Data Venda', 'Data Pag.', 'Dt. Lançto.']];
     const headStyles = { fillColor: [245, 166, 35], textColor: 255, fontStyle: 'bold', fontSize: 10 };
     const bodyStyles = { fontSize: 9 };
-    const columnStyles = { 0: { cellWidth: 8 }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' } };
+    const columnStyles = {
+      0: { cellWidth: 7 },
+      1: { cellWidth: 18 },
+      2: { cellWidth: 20 },
+      3: { cellWidth: 50 },
+      4: { cellWidth: 22, halign: 'right' },
+      5: { cellWidth: 22, halign: 'right' },
+      6: { cellWidth: 22, halign: 'right' },
+      7: { cellWidth: 16 },
+      8: { cellWidth: 27 },
+      9: { cellWidth: 17 },
+      10: { cellWidth: 17 },
+      11: { cellWidth: 17 }
+    };
     const margin = { left: 14, right: 14 };
 
     if (tipo === 'geral') {
