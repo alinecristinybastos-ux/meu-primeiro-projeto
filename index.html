@@ -1012,7 +1012,12 @@
 
   async function atualizarStatusPagamento(id, novoStatus) {
     try {
-      await db.collection('vendas').doc(id).update({ statusPagamento: novoStatus });
+      const venda = todasVendas.find(v => v.id === id);
+      const update = { statusPagamento: novoStatus };
+      if (novoStatus === 'pago' && venda && !venda.pagamentos?.length && !venda.dataRecebimento) {
+        update.dataRecebimento = new Date().toISOString().slice(0, 10);
+      }
+      await db.collection('vendas').doc(id).update(update);
     } catch (e) { mostrarAlerta('Erro ao atualizar status.', true); }
   }
 
@@ -1410,7 +1415,6 @@
       const statusEntrega = v.statusEntrega || 'a_entregar';
       const recebido = recebidoPeriodo(v);
       const aReceber = Math.max((v.valor || 0) - valorPagoEfetivo(v), 0);
-      const entregaTxt = statusEntrega === 'entregue' ? 'Entregue' : 'A Entregar';
       const itens = v.itens && v.itens.length ? v.itens : [{ produto: v.produto, valor: v.valor }];
       const produtosTxt = itens.map(it => `${it.produto} (${formatarValor(it.valor)})`).join('\n');
       let dataPag = '-';
@@ -1420,11 +1424,6 @@
       } else if (v.dataRecebimento) {
         dataPag = formatarData(v.dataRecebimento);
       }
-      let dataLancamento = '-';
-      if (v.timestamp) {
-        const d = v.timestamp.toDate ? v.timestamp.toDate() : new Date(v.timestamp);
-        dataLancamento = d.toLocaleDateString('pt-BR');
-      }
       return [
         v.numero || '-',
         v.vendedor || '-',
@@ -1433,18 +1432,27 @@
         formatarValor(v.valor),
         formatarValor(recebido),
         formatarValor(aReceber),
-        entregaTxt,
         v.obs || '',
         formatarData(v.data),
-        dataPag,
-        dataLancamento
+        dataPag
       ];
     });
 
-    const head = [['#', 'Vendedor', 'Cliente', 'Produtos', 'Valor Total', 'Recebido', 'A Receber', 'Entrega', 'Observação', 'Data Venda', 'Data Pag.', 'Dt. Lançto.']];
+    const head = [['#', 'Vendedor', 'Cliente', 'Produtos', 'Valor Total', 'Recebido', 'A Receber', 'Observação', 'Data Venda', 'Data Pag.']];
     const headStyles = { fillColor: [245, 166, 35], textColor: 255, fontStyle: 'bold', fontSize: 10 };
     const bodyStyles = { fontSize: 9 };
-    const columnStyles = { 0: { cellWidth: 8 }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' } };
+    const columnStyles = {
+      0: { cellWidth: 7 },
+      1: { cellWidth: 18 },
+      2: { cellWidth: 20 },
+      3: { cellWidth: 55 },
+      4: { cellWidth: 22, halign: 'right' },
+      5: { cellWidth: 22, halign: 'right' },
+      6: { cellWidth: 22, halign: 'right' },
+      7: { cellWidth: 35 },
+      8: { cellWidth: 22 },
+      9: { cellWidth: 23 }
+    };
     const margin = { left: 14, right: 14 };
 
     if (tipo === 'geral') {
