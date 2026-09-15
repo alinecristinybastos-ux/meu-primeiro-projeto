@@ -1415,7 +1415,6 @@
       const statusEntrega = v.statusEntrega || 'a_entregar';
       const recebido = recebidoPeriodo(v);
       const aReceber = Math.max((v.valor || 0) - valorPagoEfetivo(v), 0);
-      const entregaTxt = statusEntrega === 'entregue' ? 'Entregue' : 'A Entregar';
       const itens = v.itens && v.itens.length ? v.itens : [{ produto: v.produto, valor: v.valor }];
       const produtosTxt = itens.map(it => `${it.produto} (${formatarValor(it.valor)})`).join('\n');
       let dataPag = '-';
@@ -1438,7 +1437,6 @@
         formatarValor(v.valor),
         formatarValor(recebido),
         formatarValor(aReceber),
-        entregaTxt,
         v.obs || '',
         formatarData(v.data),
         dataPag,
@@ -1446,22 +1444,21 @@
       ];
     });
 
-    const head = [['#', 'Vendedor', 'Cliente', 'Produtos', 'Valor Total', 'Recebido', 'A Receber', 'Entrega', 'Observação', 'Data Venda', 'Data Pag.', 'Dt. Lançto.']];
+    const head = [['#', 'Vendedor', 'Cliente', 'Produtos', 'Valor Total', 'Recebido', 'A Receber', 'Observação', 'Data Venda', 'Data Pag.', 'Dt. Lançto.']];
     const headStyles = { fillColor: [245, 166, 35], textColor: 255, fontStyle: 'bold', fontSize: 10 };
     const bodyStyles = { fontSize: 9 };
     const columnStyles = {
       0: { cellWidth: 7 },
       1: { cellWidth: 18 },
       2: { cellWidth: 20 },
-      3: { cellWidth: 50 },
+      3: { cellWidth: 55 },
       4: { cellWidth: 22, halign: 'right' },
       5: { cellWidth: 22, halign: 'right' },
       6: { cellWidth: 22, halign: 'right' },
-      7: { cellWidth: 16 },
-      8: { cellWidth: 27 },
-      9: { cellWidth: 17 },
-      10: { cellWidth: 17 },
-      11: { cellWidth: 17 }
+      7: { cellWidth: 30 },
+      8: { cellWidth: 20 },
+      9: { cellWidth: 20 },
+      10: { cellWidth: 20 }
     };
     const margin = { left: 14, right: 14 };
 
