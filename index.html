@@ -1424,11 +1424,6 @@
       } else if (v.dataRecebimento) {
         dataPag = formatarData(v.dataRecebimento);
       }
-      let dataLancamento = '-';
-      if (v.timestamp) {
-        const d = v.timestamp.toDate ? v.timestamp.toDate() : new Date(v.timestamp);
-        dataLancamento = d.toLocaleDateString('pt-BR');
-      }
       return [
         v.numero || '-',
         v.vendedor || '-',
@@ -1439,12 +1434,11 @@
         formatarValor(aReceber),
         v.obs || '',
         formatarData(v.data),
-        dataPag,
-        dataLancamento
+        dataPag
       ];
     });
 
-    const head = [['#', 'Vendedor', 'Cliente', 'Produtos', 'Valor Total', 'Recebido', 'A Receber', 'Observação', 'Data Venda', 'Data Pag.', 'Dt. Lançto.']];
+    const head = [['#', 'Vendedor', 'Cliente', 'Produtos', 'Valor Total', 'Recebido', 'A Receber', 'Observação', 'Data Venda', 'Data Pag.']];
     const headStyles = { fillColor: [245, 166, 35], textColor: 255, fontStyle: 'bold', fontSize: 10 };
     const bodyStyles = { fontSize: 9 };
     const columnStyles = {
@@ -1455,10 +1449,9 @@
       4: { cellWidth: 22, halign: 'right' },
       5: { cellWidth: 22, halign: 'right' },
       6: { cellWidth: 22, halign: 'right' },
-      7: { cellWidth: 30 },
-      8: { cellWidth: 20 },
-      9: { cellWidth: 20 },
-      10: { cellWidth: 20 }
+      7: { cellWidth: 35 },
+      8: { cellWidth: 22 },
+      9: { cellWidth: 23 }
     };
     const margin = { left: 14, right: 14 };
 
