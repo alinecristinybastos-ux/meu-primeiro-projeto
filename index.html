@@ -363,8 +363,6 @@
     .badge.a_entregar { background: #fce8e6; color: #ea4335; }
     .badge.pago { background: #e6f4ea; color: #34a853; }
     .badge.a_receber { background: #fff4e0; color: #c47d00; }
-    .badge.lancado { background: #e6f4ea; color: #34a853; cursor: pointer; border: none; }
-    .badge.nao-lancado { background: #f0f4f8; color: #888; cursor: pointer; border: none; }
 
     .btn-add-item {
       background: #fff4e0;
@@ -881,7 +879,7 @@
   function vendaConcluida(v) {
     const statusEntrega = v.statusEntrega || 'a_entregar';
     const statusPagamento = v.statusPagamento || 'a_receber';
-    return statusEntrega === 'entregue' && statusPagamento === 'pago' && !!v.lancadoVenda && !!v.lancadoPagamento;
+    return statusEntrega === 'entregue' && statusPagamento === 'pago';
   }
 
   function toggleConcluidas() {
@@ -938,7 +936,7 @@
       const numero = await obterProximoNumeroVenda();
       await db.collection('vendas').add({
         numero, vendedor, cliente, itens: itensTemp.slice(), valor, data, hora, obs,
-        statusEntrega, statusPagamento, valorPago, lancadoVenda: false, lancadoPagamento: false,
+        statusEntrega, statusPagamento, valorPago,
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
       });
 
@@ -960,41 +958,7 @@
     }
   }
 
-  async function toggleLancadoVenda(id, novoValor) {
-    const msg = novoValor
-      ? 'Confirma que o lançamento da VENDA foi feito no sistema?'
-      : 'Confirma que deseja desmarcar o lançamento da venda no sistema?';
-    if (!confirm(msg)) return;
-    const venda = todasVendas.find(v => v.id === id);
-    const quem = (document.getElementById('vendedorNome').value || 'Alguém').trim();
-    const acao = `${quem} marcou a venda #${venda ? venda.numero : ''} de ${venda ? venda.cliente : ''} como ${novoValor ? 'lançada (venda)' : 'não lançada (venda)'}`;
-    try {
-      await db.collection('vendas').doc(id).update({
-        lancadoVenda: novoValor,
-        historico: firebase.firestore.FieldValue.arrayUnion({ acao, quando: new Date() })
-      });
-    } catch (e) {
-      mostrarAlerta('Erro ao atualizar.', true);
-    }
-  }
 
-  async function toggleLancadoPagamento(id, novoValor) {
-    const msg = novoValor
-      ? 'Confirma que o lançamento do PAGAMENTO foi feito no sistema?'
-      : 'Confirma que deseja desmarcar o lançamento do pagamento no sistema?';
-    if (!confirm(msg)) return;
-    const venda = todasVendas.find(v => v.id === id);
-    const quem = (document.getElementById('vendedorNome').value || 'Alguém').trim();
-    const acao = `${quem} marcou o pagamento da venda #${venda ? venda.numero : ''} de ${venda ? venda.cliente : ''} como ${novoValor ? 'lançado (pagamento)' : 'não lançado (pagamento)'}`;
-    try {
-      await db.collection('vendas').doc(id).update({
-        lancadoPagamento: novoValor,
-        historico: firebase.firestore.FieldValue.arrayUnion({ acao, quando: new Date() })
-      });
-    } catch (e) {
-      mostrarAlerta('Erro ao atualizar.', true);
-    }
-  }
 
   async function atualizarStatusEntrega(id, novoStatus) {
     const venda = todasVendas.find(v => v.id === id);
@@ -1259,8 +1223,6 @@
       const statusPagamento = v.statusPagamento || 'a_receber';
       const valorPago = valorPagoEfetivo(v);
       const falta = Math.max((v.valor || 0) - valorPago, 0);
-      const lancadoVenda = !!v.lancadoVenda;
-      const lancadoPagamento = !!v.lancadoPagamento;
       const itens = v.itens && v.itens.length ? v.itens : [{ produto: v.produto, valor: v.valor }];
       const produtosTxt = itens.map(it => `📦 ${escapar(it.produto)} - ${formatarValor(it.valor)}`).join('<br>');
       const dataRecebimento = v.dataRecebimento || '';
@@ -1314,8 +1276,6 @@
                   <option value="a_receber" ${statusPagamento === 'a_receber' ? 'selected' : ''}>⏳ A Receber</option>
                   <option value="pago" ${statusPagamento === 'pago' ? 'selected' : ''}>💰 Pago</option>
                 </select>
-                <span class="badge ${lancadoVenda ? 'lancado' : 'nao-lancado'}" onclick="toggleLancadoVenda('${v.id}', ${!lancadoVenda})">${lancadoVenda ? '✔ Venda Lançada' : '○ Venda Não Lançada'}</span>
-                <span class="badge ${lancadoPagamento ? 'lancado' : 'nao-lancado'}" onclick="toggleLancadoPagamento('${v.id}', ${!lancadoPagamento})">${lancadoPagamento ? '✔ Pagto Lançado' : '○ Pagto Não Lançado'}</span>
               </div>
               ${pagamentosArr.map(p => `<div class="pagamento-linha"><span>💵 ${formatarValor(p.valor)} — ${formatarData(p.data)}</span><button class="btn-remover-pag" onclick="removerPagamento('${v.id}','${p.id}')" title="Remover">✕</button></div>`).join('')}
               ${!v.pagamentos && dataRecebimento && valorPago > 0 ? `<div class="data-receb-texto">💵 Recebido em ${formatarData(dataRecebimento)}</div>` : ''}
